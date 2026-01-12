@@ -127,9 +127,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: abcec69babdb85247972c22f2ba62e41, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CoinPickup
-  value: 1
+  pickerTag: Player
+  effect: {fileID: 11400000, guid: bb4231c06e568574c9c93df910756e20, type: 2}
+  destroyOnPickup: 1
   pickupClip: {fileID: 8300000, guid: 6032b1098d3ffc54bbae523faec52069, type: 3}
   volume: 1
+  play3D: 1
+  pickupVfxPrefab: {fileID: 0}
+  vfxLifetime: 2
 --- !u!82 &5031892829311448572
 AudioSource:
   m_ObjectHideFlags: 0
