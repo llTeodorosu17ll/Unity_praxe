@@ -1,93 +1,119 @@
 using UnityEngine;
+using UnityEngine.AI;
 
 public class EnemyMovement : MonoBehaviour
 {
-    [SerializeField] private float speed = 3f;
+    [Header("Agent")]
+    [SerializeField] private NavMeshAgent agent;
 
     [Header("Distances")]
-    [SerializeField] private float reachDistance = 5f;     
-    [SerializeField] private float arriveDistance = 0.3f;  
-    [SerializeField] private float breakDistance = 20f;    
+    [SerializeField] private float reachDistance = 6f;     // start chasing
+    [SerializeField] private float loseDistance = 12f;     // stop chasing
+    [SerializeField] private float arriveDistance = 0.6f;  // waypoint arrival
+
+    [Header("Return To Start")]
+    [SerializeField] private bool returnToStart = true;
+    [SerializeField] private float returnArriveDistance = 0.8f;
 
     [Header("Targets")]
-    [SerializeField] private Transform[] waypoints;
-    [SerializeField] private Transform baseLocation;
     [SerializeField] private Transform player;
+    [SerializeField] private Transform[] waypoints;
 
+    [Header("Game Over")]
     [SerializeField] private MonoBehaviour playerMovementScript;
     [SerializeField] private GameObject gameOverUI;
 
+    private int waypointIndex = -1;
+    private bool chasing;
 
-    private Transform currentTarget;
-    private int lastIndex = -1;
+    private Vector3 startPos;
+    private bool returning;
+
+    private void Awake()
+    {
+        if (agent == null) agent = GetComponent<NavMeshAgent>();
+    }
 
     private void Start()
     {
-        PickRandomTarget();
+        startPos = transform.position;
+        PickNextWaypoint();
     }
 
     private void Update()
     {
-        if (currentTarget == null) return;
+        if (player == null || agent == null || !agent.isOnNavMesh)
+            return;
 
-        float distanceToPlayer = player != null ? Vector3.Distance(player.position, transform.position) : float.PositiveInfinity;
-        float distanceToBase = baseLocation != null ? Vector3.Distance(baseLocation.position, transform.position) : 0f;
+        float d = Vector3.Distance(transform.position, player.position);
 
-        if (distanceToPlayer < reachDistance)
+        if (!chasing && d <= reachDistance)
         {
-            currentTarget = player;
+            chasing = true;
+            returning = false; // если начал погоню — отменяем возврат
         }
 
-        transform.position = Vector3.MoveTowards(
-            transform.position,
-            currentTarget.position,
-            speed * Time.deltaTime
-        );
-
-        if (currentTarget != player && Vector3.Distance(transform.position, currentTarget.position) <= arriveDistance)
+        if (chasing && d >= loseDistance)
         {
-            PickRandomTarget();
+            chasing = false;
+
+            // как только потерял игрока -> возвращаемся на старт
+            if (returnToStart)
+                returning = true;
+        }
+
+        if (chasing)
+        {
+            agent.SetDestination(player.position);
             return;
         }
 
-        if (currentTarget == player && baseLocation != null && distanceToBase > breakDistance)
+        if (returning)
         {
-            PickRandomTarget();
+            agent.SetDestination(startPos);
+
+            if (!agent.pathPending && agent.remainingDistance <= returnArriveDistance)
+            {
+                returning = false;
+                // после возврата можно продолжить патруль
+                PickNextWaypoint();
+            }
             return;
         }
+
+        Patrol();
     }
 
-    private void PickRandomTarget()
+    private void Patrol()
     {
         if (waypoints == null || waypoints.Length == 0) return;
 
-        if (waypoints.Length == 1)
-        {
-            currentTarget = waypoints[0];
-            return;
-        }
+        Transform wp = waypoints[waypointIndex];
+        if (wp == null) { PickNextWaypoint(); return; }
 
-        int index;
-        do
-        {
-            index = Random.Range(0, waypoints.Length);
-        } while (index == lastIndex);
+        if (!agent.pathPending && agent.remainingDistance <= arriveDistance)
+            PickNextWaypoint();
 
-        lastIndex = index;
-        currentTarget = waypoints[index];
+        agent.SetDestination(wp.position);
+    }
+
+    private void PickNextWaypoint()
+    {
+        if (waypoints == null || waypoints.Length == 0) return;
+
+        waypointIndex = (waypointIndex + 1) % waypoints.Length;
+        if (waypoints[waypointIndex] != null)
+            agent.SetDestination(waypoints[waypointIndex].position);
     }
 
     private void OnTriggerEnter(Collider other)
     {
         if (!other.CompareTag("Player")) return;
 
-        if (playerMovementScript != null)
-            playerMovementScript.enabled = false;
-
-        if (gameOverUI != null)
-            gameOverUI.SetActive(true);
+        if (playerMovementScript != null) playerMovementScript.enabled = false;
+        if (gameOverUI != null) gameOverUI.SetActive(true);
 
         enabled = false;
+        if (agent != null) agent.isStopped = true;
     }
-
 }

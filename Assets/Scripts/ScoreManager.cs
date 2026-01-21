@@ -9,6 +9,7 @@ public class ScoreManager : MonoBehaviour
     [SerializeField] private string prefix = "Score = ";
 
     private int score;
+    public int Score => score;
 
     private void Awake()
     {

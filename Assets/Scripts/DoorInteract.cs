@@ -1,5 +1,5 @@
 using UnityEngine;
-using TMPro;
+using UnityEngine.AI;
 #if ENABLE_INPUT_SYSTEM
 using UnityEngine.InputSystem;
 #endif
@@ -8,6 +8,7 @@ public class DoorInteract : MonoBehaviour
 {
     [Header("Who can interact")]
     [SerializeField] private string playerTag = "Player";
+    [SerializeField] private NavMeshObstacle navObstacle;
 
     [Header("Keys")]
     [SerializeField] private int keysCost = 1;
@@ -17,8 +18,8 @@ public class DoorInteract : MonoBehaviour
     [SerializeField] private string openTriggerName = "Open";
     [SerializeField] private string closeTriggerName = "Close";
 
-    [Header("Hint UI (optional)")]
-    [SerializeField] private TMP_Text hintText; // World Space TMP text near this door
+    [Header("Main Canvas Hint")]
+    [SerializeField] private UIHint uiHint; // drag UIHint here OR it will auto-find
     [SerializeField] private string msgOpenFree = "E - Open";
     [SerializeField] private string msgOpenUsesKey = "E - Open (uses 1 key)";
     [SerializeField] private string msgClose = "E - Close";
@@ -27,13 +28,20 @@ public class DoorInteract : MonoBehaviour
     [Header("State")]
     [SerializeField] private bool startUnlocked = false;
 
+    [Header("Debug")]
+    [SerializeField] private bool debugLogs = false;
+
     private bool playerInside;
     private bool isOpen;
     private bool unlocked;
 
     private void Awake()
     {
+        Debug.Log("DoorInteract Awake: " + gameObject.name, this);
         unlocked = startUnlocked;
+
+        if (uiHint == null)
+            uiHint = FindFirstObjectByType<UIHint>();
 
         if (animator == null)
         {
@@ -48,19 +56,15 @@ public class DoorInteract : MonoBehaviour
             return;
         }
 
-        // Make sure hint starts OFF
-        if (hintText != null)
-            hintText.gameObject.SetActive(false);
+        // стартово скрываем подсказку
+        uiHint?.Hide();
     }
 
     private void Update()
     {
-        // Hard guarantee: if not near door -> hint OFF and do nothing
         if (!playerInside)
-        {
-            if (hintText != null) hintText.gameObject.SetActive(false);
             return;
-        }
+
 
         RefreshHint();
 
@@ -77,16 +81,19 @@ public class DoorInteract : MonoBehaviour
                 return;
             }
 
-            // not unlocked yet -> need a key
-            if (KeyManager.Instance == null) { RefreshHint(); return; }
+            // locked -> need key
+            if (KeyManager.Instance == null)
+            {
+                RefreshHint();
+                return;
+            }
 
             if (KeyManager.Instance.TrySpend(keysCost))
             {
-                unlocked = true; // once paid, door stays unlocked forever
+                unlocked = true; // once paid, stays unlocked forever
                 TriggerOpen();
                 isOpen = true;
             }
-            // else: no keys -> do nothing
 
             RefreshHint();
         }
@@ -101,39 +108,49 @@ public class DoorInteract : MonoBehaviour
 
     private void TriggerOpen()
     {
+        if (debugLogs) Debug.Log($"Door '{name}': OPEN", this);
+        if (navObstacle != null) navObstacle.enabled = false;
+
+
         animator.ResetTrigger(closeTriggerName);
         animator.SetTrigger(openTriggerName);
     }
 
     private void TriggerClose()
     {
+        if (debugLogs) Debug.Log($"Door '{name}': CLOSE", this);
+        if (navObstacle != null) navObstacle.enabled = true;
+
+
         animator.ResetTrigger(openTriggerName);
         animator.SetTrigger(closeTriggerName);
     }
 
     private void RefreshHint()
     {
-        if (hintText == null) return;
+        Debug.Log("RefreshHint called. uiHint=" + (uiHint == null ? "NULL" : uiHint.name) + " playerInside=" + playerInside, this);
+        if (uiHint == null) return;
 
-        // Only show while inside trigger
-        hintText.gameObject.SetActive(playerInside);
-
-        if (!playerInside) return;
+        if (!playerInside)
+        {
+            uiHint.Hide();
+            return;
+        }
 
         if (isOpen)
         {
-            hintText.text = msgClose;
+            uiHint.Show(msgClose);
             return;
         }
 
         if (unlocked)
         {
-            hintText.text = msgOpenFree;
+            uiHint.Show(msgOpenFree);
             return;
         }
 
         bool hasKey = KeyManager.Instance != null && KeyManager.Instance.Keys >= keysCost;
-        hintText.text = hasKey ? msgOpenUsesKey : msgNeedKey;
+        uiHint.Show(hasKey ? msgOpenUsesKey : msgNeedKey);
     }
 
     private bool PressedInteract()
@@ -148,16 +165,22 @@ public class DoorInteract : MonoBehaviour
     private void OnTriggerEnter(Collider other)
     {
         if (!other.CompareTag(playerTag)) return;
+
         playerInside = true;
+
+        if (debugLogs) Debug.Log($"ENTER Door Trigger: {name} (playerInside = true)", this);
+
         RefreshHint();
     }
 
     private void OnTriggerExit(Collider other)
     {
         if (!other.CompareTag(playerTag)) return;
+
         playerInside = false;
 
-        // Immediately hide hint when leaving
-        if (hintText != null) hintText.gameObject.SetActive(false);
+        if (debugLogs) Debug.Log($"EXIT Door Trigger: {name} (playerInside = false)", this);
+
+        uiHint?.Hide();
     }
 }
