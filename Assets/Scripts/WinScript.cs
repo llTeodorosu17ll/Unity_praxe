@@ -9,6 +9,7 @@ public class WinScript : MonoBehaviour
     [SerializeField] private GameObject keysCount;
     [SerializeField] private GameObject scoreCount;
     [SerializeField] private TMP_Text coinsText;
+
     [SerializeField] private MonoBehaviour playerMovementScript;
 
     private bool won;
@@ -16,6 +17,9 @@ public class WinScript : MonoBehaviour
     private void Awake()
     {
         if (winPanel != null) winPanel.SetActive(false);
+        if (coinsWinText != null) coinsWinText.SetActive(false);
+        if (keysCount != null) keysCount.SetActive(false);
+        if (scoreCount != null) scoreCount.SetActive(false);
     }
 
     private void OnTriggerEnter(Collider other)
@@ -35,7 +39,9 @@ public class WinScript : MonoBehaviour
             winPanel.SetActive(true);
 
         if (coinsText != null && ScoreManager.Instance != null)
-            coinsWinText.SetActive(true);
-            coinsText.text = "You got - " + ScoreManager.Instance.Score.ToString() + " coins";
+        {
+            if (coinsWinText != null) coinsWinText.SetActive(true);
+            coinsText.text = "You got - " + ScoreManager.Instance.Score + " coins";
+        }
     }
 }

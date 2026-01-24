@@ -35,9 +35,12 @@ public class DoorInteract : MonoBehaviour
     private bool isOpen;
     private bool unlocked;
 
+    // ---------------- Unity event functions ----------------
+
     private void Awake()
     {
-        Debug.Log("DoorInteract Awake: " + gameObject.name, this);
+        if (debugLogs) Debug.Log("DoorInteract Awake: " + gameObject.name, this);
+
         unlocked = startUnlocked;
 
         if (uiHint == null)
@@ -56,7 +59,6 @@ public class DoorInteract : MonoBehaviour
             return;
         }
 
-        // стартово скрываем подсказку
         uiHint?.Hide();
     }
 
@@ -65,10 +67,10 @@ public class DoorInteract : MonoBehaviour
         if (!playerInside)
             return;
 
-
         RefreshHint();
 
-        if (!PressedInteract()) return;
+        if (!PressedInteract())
+            return;
 
         if (!isOpen)
         {
@@ -106,11 +108,32 @@ public class DoorInteract : MonoBehaviour
         }
     }
 
+    private void OnTriggerEnter(Collider other)
+    {
+        if (!other.CompareTag(playerTag)) return;
+
+        playerInside = true;
+        if (debugLogs) Debug.Log($"ENTER Door Trigger: {name} (playerInside = true)", this);
+
+        RefreshHint();
+    }
+
+    private void OnTriggerExit(Collider other)
+    {
+        if (!other.CompareTag(playerTag)) return;
+
+        playerInside = false;
+        if (debugLogs) Debug.Log($"EXIT Door Trigger: {name} (playerInside = false)", this);
+
+        uiHint?.Hide();
+    }
+
+    // ---------------- Internal logic ----------------
+
     private void TriggerOpen()
     {
         if (debugLogs) Debug.Log($"Door '{name}': OPEN", this);
         if (navObstacle != null) navObstacle.enabled = false;
-
 
         animator.ResetTrigger(closeTriggerName);
         animator.SetTrigger(openTriggerName);
@@ -121,14 +144,15 @@ public class DoorInteract : MonoBehaviour
         if (debugLogs) Debug.Log($"Door '{name}': CLOSE", this);
         if (navObstacle != null) navObstacle.enabled = true;
 
-
         animator.ResetTrigger(openTriggerName);
         animator.SetTrigger(closeTriggerName);
     }
 
     private void RefreshHint()
     {
-        Debug.Log("RefreshHint called. uiHint=" + (uiHint == null ? "NULL" : uiHint.name) + " playerInside=" + playerInside, this);
+        if (debugLogs)
+            Debug.Log("RefreshHint called. uiHint=" + (uiHint == null ? "NULL" : uiHint.name) + " playerInside=" + playerInside, this);
+
         if (uiHint == null) return;
 
         if (!playerInside)
@@ -160,27 +184,5 @@ public class DoorInteract : MonoBehaviour
 #else
         return Input.GetKeyDown(KeyCode.E);
 #endif
-    }
-
-    private void OnTriggerEnter(Collider other)
-    {
-        if (!other.CompareTag(playerTag)) return;
-
-        playerInside = true;
-
-        if (debugLogs) Debug.Log($"ENTER Door Trigger: {name} (playerInside = true)", this);
-
-        RefreshHint();
-    }
-
-    private void OnTriggerExit(Collider other)
-    {
-        if (!other.CompareTag(playerTag)) return;
-
-        playerInside = false;
-
-        if (debugLogs) Debug.Log($"EXIT Door Trigger: {name} (playerInside = false)", this);
-
-        uiHint?.Hide();
     }
 }

@@ -1,46 +1,37 @@
 using UnityEngine;
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine.InputSystem;
 
-[RequireComponent(typeof(Player_Movement_Script))]
 public class Player : MonoBehaviour
 {
-    [SerializeField] Player_Movement_Script Player_Movement_Script;
+    [SerializeField] private PlayerMovement movement;
 
-    #region Input Handling
-
-    void OnMove(InputValue value)
-    { 
-        Player_Movement_Script.MoveInput = value.Get< Vector2 > ();
+    private void Awake()
+    {
+        if (movement == null)
+            movement = GetComponent<PlayerMovement>();
     }
 
-    void OnLook(InputValue value)
+    private void Start()
     {
-        Player_Movement_Script.LookInput = value.Get<Vector2>();
-    }
-
-    void OnJump(InputValue value)
-    {
-        if (value.isPressed)
-        {
-            Player_Movement_Script.TryJump();
-        }
-    }
-
-    #endregion
-
-    #region Unity Methods
-
-    void OnValidate()
-    {
-        if (Player_Movement_Script == null) Player_Movement_Script= GetComponent<Player_Movement_Script>();
-    }
-
-    void Start()
-    {
-        Cursor.visible = false;
         Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
     }
-    #endregion
+
+    public void OnMove(InputValue value)
+    {
+        if (movement == null) return;
+        movement.MoveInput = value.Get<Vector2>();
+    }
+
+    public void OnLook(InputValue value)
+    {
+        if (movement == null) return;
+        movement.LookInput = value.Get<Vector2>();
+    }
+
+    public void OnJump(InputValue value)
+    {
+        if (movement == null) return;
+        if (value.isPressed) movement.TryJump();
+    }
 }

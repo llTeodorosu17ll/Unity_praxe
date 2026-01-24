@@ -5,9 +5,21 @@ public class UIHint : MonoBehaviour
 {
     [SerializeField] private TMP_Text hintText;
 
+    // optional debug toggle
+    [SerializeField] private bool debugTest = false;
+
     private void Reset()
     {
         hintText = GetComponentInChildren<TMP_Text>(true);
+    }
+
+    private void Awake()
+    {
+        if (!debugTest) return;
+
+        Debug.Log("UIHint Awake (debug): " + gameObject.name, this);
+        Show("UI TEST");
+        Invoke(nameof(Hide), 2f);
     }
 
     public void Show(string msg)
@@ -19,8 +31,6 @@ public class UIHint : MonoBehaviour
         }
 
         hintText.gameObject.SetActive(true);
-
-        // ВАЖНО: включаем сам компонент TMP тоже
         if (!hintText.enabled) hintText.enabled = true;
 
         hintText.text = msg;
@@ -31,18 +41,6 @@ public class UIHint : MonoBehaviour
         if (hintText == null) return;
 
         hintText.text = "";
-
-        // можно просто прятать объект
         hintText.gameObject.SetActive(false);
     }
-
-
-    private void Awake()
-    {
-        Debug.Log("UIHint Awake: " + gameObject.name, this);
-        Show("UI TEST");
-        Invoke(nameof(Hide), 2f);
-    }
-
-
 }

@@ -1154,8 +1154,8 @@ MonoBehaviour:
   playerTag: Player
   winPanel: {fileID: 513300342}
   coinsWinText: {fileID: 1053786215}
-  keysCount: {fileID: 926786258}
-  scoreCount: {fileID: 19765912}
+  keysCount: {fileID: 0}
+  scoreCount: {fileID: 0}
   coinsText: {fileID: 1053786216}
   playerMovementScript: {fileID: 1512452514}
 --- !u!135 &342207254
@@ -2792,6 +2792,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::UIHint
   hintText: {fileID: 1649865430}
+  debugTest: 0
 --- !u!1 &986189899
 GameObject:
   m_ObjectHideFlags: 0
@@ -4509,17 +4510,15 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Player_Movement_Script
   maxSpeed: 5
-  Acceleration: 15
-  JumpHeight: 2
-  LookSensitivity: {x: 0.1, y: 0.1}
-  PitchLimit: 45
-  currentPitch: 0
-  GravityScale: 3
-  VerticalVelocity: 0
-  MoveInput: {x: 0, y: 0}
-  LookInput: {x: 0, y: 0}
+  acceleration: 15
+  jumpHeight: 2
+  gravityScale: 3
+  lookSensitivity: {x: 0.1, y: 0.1}
+  pitchLimit: 85
   tpCamera: {fileID: 395063803}
   controller: {fileID: 1512452515}
+  MoveInput: {x: 0, y: 0}
+  LookInput: {x: 0, y: 0}
 --- !u!114 &1512452514
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4547,7 +4546,7 @@ MonoBehaviour:
   m_ActionEvents: []
   m_NeverAutoSwitchControlSchemes: 0
   m_DefaultControlScheme: 
-  m_DefaultActionMap: 
+  m_DefaultActionMap: Player
   m_SplitScreenIndex: -1
   m_Camera: {fileID: 0}
 --- !u!143 &1512452515
@@ -4587,7 +4586,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ee4758a682cd2024baa16768126a358a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Player
-  Player_Movement_Script: {fileID: 1512452513}
+  movement: {fileID: 1512452513}
 --- !u!1 &1557870653
 GameObject:
   m_ObjectHideFlags: 0
