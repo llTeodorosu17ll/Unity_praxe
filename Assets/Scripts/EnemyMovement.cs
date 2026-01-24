@@ -29,9 +29,50 @@ public class EnemyMovement : MonoBehaviour
     private Vector3 startPos;
     private bool returning;
 
+    // --- Save/Load API ---
+    public bool IsChasingPlayer => chasing;
+    public bool IsReturning => returning;
+    public int CurrentWaypointIndex => waypointIndex;
+
+    public void ApplySavedAIState(bool chasingPlayer, bool isReturning, int savedWaypointIndex)
+    {
+        chasing = chasingPlayer;
+        returning = isReturning;
+
+        if (waypoints != null && waypoints.Length > 0)
+            waypointIndex = Mathf.Clamp(savedWaypointIndex, 0, waypoints.Length - 1);
+        else
+            waypointIndex = -1;
+
+        if (agent == null) agent = GetComponent<NavMeshAgent>();
+        if (agent == null || !agent.isOnNavMesh) return;
+
+        agent.isStopped = false;
+        enabled = true;
+
+        if (chasing && player != null)
+        {
+            agent.SetDestination(player.position);
+        }
+        else if (returning)
+        {
+            agent.SetDestination(startPos);
+        }
+        else if (waypoints != null && waypoints.Length > 0 && waypointIndex >= 0 && waypoints[waypointIndex] != null)
+        {
+            agent.SetDestination(waypoints[waypointIndex].position);
+        }
+        else
+        {
+            PickNextWaypoint();
+        }
+    }
+
+    // --- Unity event functions ---
     private void Awake()
     {
         if (agent == null) agent = GetComponent<NavMeshAgent>();
+        startPos = transform.position;
     }
 
     private void Start()
@@ -50,14 +91,12 @@ public class EnemyMovement : MonoBehaviour
         if (!chasing && d <= reachDistance)
         {
             chasing = true;
-            returning = false; // если начал погоню — отменяем возврат
+            returning = false;
         }
 
         if (chasing && d >= loseDistance)
         {
             chasing = false;
-
-            // как только потерял игрока -> возвращаемся на старт
             if (returnToStart)
                 returning = true;
         }
@@ -75,7 +114,6 @@ public class EnemyMovement : MonoBehaviour
             if (!agent.pathPending && agent.remainingDistance <= returnArriveDistance)
             {
                 returning = false;
-                // после возврата можно продолжить патруль
                 PickNextWaypoint();
             }
             return;
@@ -84,6 +122,18 @@ public class EnemyMovement : MonoBehaviour
         Patrol();
     }
 
+    private void OnTriggerEnter(Collider other)
+    {
+        if (!other.CompareTag("Player")) return;
+
+        if (playerMovementScript != null) playerMovementScript.enabled = false;
+        if (gameOverUI != null) gameOverUI.SetActive(true);
+
+        enabled = false;
+        if (agent != null) agent.isStopped = true;
+    }
+
+    // --- Patrol helpers ---
     private void Patrol()
     {
         if (waypoints == null || waypoints.Length == 0) return;
@@ -104,16 +154,5 @@ public class EnemyMovement : MonoBehaviour
         waypointIndex = (waypointIndex + 1) % waypoints.Length;
         if (waypoints[waypointIndex] != null)
             agent.SetDestination(waypoints[waypointIndex].position);
-    }
-
-    private void OnTriggerEnter(Collider other)
-    {
-        if (!other.CompareTag("Player")) return;
-
-        if (playerMovementScript != null) playerMovementScript.enabled = false;
-        if (gameOverUI != null) gameOverUI.SetActive(true);
-
-        enabled = false;
-        if (agent != null) agent.isStopped = true;
     }
 }

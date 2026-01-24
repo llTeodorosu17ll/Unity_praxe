@@ -8,7 +8,19 @@ public class KeyManager : MonoBehaviour
     [SerializeField] private TMP_Text keysText;
     [SerializeField] private string prefix = "Keys = ";
 
-    public int Keys { get; private set; }
+    private int m_keys;
+
+    public int Keys
+    {
+        get => m_keys;
+        private set
+        {
+            m_keys = Mathf.Max(0, value);
+
+            if (keysText != null)
+                keysText.text = prefix + m_keys;
+        }
+    }
 
     private void Awake()
     {
@@ -22,27 +34,20 @@ public class KeyManager : MonoBehaviour
 
     private void Start()
     {
-        RefreshUI();
+        Keys = Keys; // refresh UI
     }
 
-    public void Add(int amount)
-    {
-        Keys += amount;
-        if (Keys < 0) Keys = 0;
-        RefreshUI();
-    }
+    public void Add(int amount = 1) => Keys += amount;
 
-    public bool TrySpend(int amount)
+    public bool TrySpend(int amount = 1)
     {
         if (Keys < amount) return false;
         Keys -= amount;
-        RefreshUI();
         return true;
     }
 
-    private void RefreshUI()
+    public void SetKeys(int value)
     {
-        if (keysText != null)
-            keysText.text = prefix + Keys;
+        Keys = value;
     }
 }
