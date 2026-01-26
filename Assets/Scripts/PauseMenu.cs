@@ -1,3 +1,4 @@
+// PauseMenu.cs
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
@@ -8,13 +9,13 @@ public class PauseMenu : MonoBehaviour
     [SerializeField] private GameObject pausePanel;
     [SerializeField] private GameObject optionsPanel;
 
-    [Header("Menu Music (one track for both panels)")]
+    [Header("Menu Music (ONE track for both panels)")]
     [SerializeField] private AudioSource menuMusicSource;
 
     [Header("Options UI")]
     [SerializeField] private Slider volumeSlider;
 
-    [Header("Save/Load")]
+    [Header("Save/Load (optional reference)")]
     [SerializeField] private SaveGameManager saveGameManager;
 
     private const string VolumeKey = "volume";
@@ -41,6 +42,9 @@ public class PauseMenu : MonoBehaviour
             volumeSlider.value = v;
             volumeSlider.onValueChanged.AddListener(OnVolumeChanged);
         }
+
+        // runtime safety: make buttons work even if Inspector shows Missing(Object)
+        BindButtonsByName();
     }
 
     private void OnDestroy()
@@ -69,7 +73,7 @@ public class PauseMenu : MonoBehaviour
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
 
-        // Start music from the beginning ONLY when entering pause mode
+        // start from beginning only when entering pause mode
         PlayFromStart(menuMusicSource);
     }
 
@@ -94,7 +98,7 @@ public class PauseMenu : MonoBehaviour
         if (pausePanel != null) pausePanel.SetActive(false);
         if (optionsPanel != null) optionsPanel.SetActive(true);
 
-        // Do NOT stop/restart music here (it continues)
+        // DO NOT stop/restart music here (it must continue)
     }
 
     public void CloseOptions()
@@ -104,22 +108,23 @@ public class PauseMenu : MonoBehaviour
         if (optionsPanel != null) optionsPanel.SetActive(false);
         if (pausePanel != null) pausePanel.SetActive(true);
 
-        // Do NOT stop/restart music here (it continues)
+        // DO NOT stop/restart music here (it must continue)
     }
 
     public void SaveGame()
     {
-        if (saveGameManager != null) saveGameManager.Save();
+        var m = saveGameManager != null ? saveGameManager : SaveGameManager.Instance;
+        if (m != null) m.Save();
     }
 
     public void LoadGame()
     {
-        if (saveGameManager != null)
+        var m = saveGameManager != null ? saveGameManager : SaveGameManager.Instance;
+        if (m != null)
         {
-            // keep timescale normal while loading
             Time.timeScale = 1f;
             StopAndReset(menuMusicSource);
-            saveGameManager.Load();
+            m.Load();
         }
     }
 
@@ -151,6 +156,7 @@ public class PauseMenu : MonoBehaviour
     private void PlayFromStart(AudioSource src)
     {
         if (src == null || src.clip == null) return;
+        if (src.isPlaying) return; // keeps it continuous when switching panels
         src.Stop();
         src.time = 0f;
         src.volume = AudioListener.volume;
@@ -162,5 +168,36 @@ public class PauseMenu : MonoBehaviour
         if (src == null) return;
         src.Stop();
         src.time = 0f;
+    }
+
+    private void BindButtonsByName()
+    {
+        // Finds buttons by GameObject name (case-insensitive):
+        // Resume, Save, Load, Options, Back
+        Bind("Resume", Resume);
+        Bind("Save", SaveGame);
+        Bind("Load", LoadGame);
+        Bind("Options", OpenOptions);
+        Bind("Back", CloseOptions);
+    }
+
+    private void Bind(string buttonName, UnityEngine.Events.UnityAction action)
+    {
+        var btn = FindButton(buttonName);
+        if (btn == null) return;
+
+        btn.onClick.RemoveListener(action);
+        btn.onClick.AddListener(action);
+    }
+
+    private Button FindButton(string name)
+    {
+        var buttons = GetComponentsInChildren<Button>(true);
+        for (int i = 0; i < buttons.Length; i++)
+        {
+            if (buttons[i] != null && buttons[i].gameObject.name.ToLower() == name.ToLower())
+                return buttons[i];
+        }
+        return null;
     }
 }

@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿// SaveGameManager.cs
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
@@ -19,7 +20,7 @@ public class EnemyState
 [System.Serializable]
 public class DoorState
 {
-    public string id;                 // door gameObject.name
+    public string id;
     public bool unlocked;
     public bool open;
 }
@@ -35,27 +36,44 @@ public class SaveData
     public int score;
     public int keys;
 
+    public List<string> collectedPickups = new();
+
     public List<EnemyState> enemies = new();
     public List<DoorState> doors = new();
 }
 
 public class SaveGameManager : MonoBehaviour
 {
+    public static SaveGameManager Instance { get; private set; }
+
     private const string FileName = "save.json";
     private string SavePath => Path.Combine(Application.persistentDataPath, FileName);
 
     private static SaveData pending;
 
+    // runtime registry of collected pickup IDs
+    private static readonly HashSet<string> collectedPickupIds = new();
+
+    public static void MarkPickupCollected(string pickupId)
+    {
+        if (string.IsNullOrEmpty(pickupId)) return;
+        collectedPickupIds.Add(pickupId);
+    }
+
+    public static bool IsPickupCollected(string pickupId)
+    {
+        if (string.IsNullOrEmpty(pickupId)) return false;
+        return collectedPickupIds.Contains(pickupId);
+    }
+
     private void Awake()
     {
-        // KEY FIX:
-        // if an old instance exists (from previous scene), destroy it and keep THIS scene instance.
-        var existing = FindObjectsByType<SaveGameManager>(FindObjectsSortMode.None);
-        foreach (var m in existing)
+        // IMPORTANT: keep the newest scene instance (so UI references won't break)
+        if (Instance != null && Instance != this)
         {
-            if (m != this)
-                Destroy(m.gameObject);
+            Destroy(Instance.gameObject);
         }
+        Instance = this;
 
         DontDestroyOnLoad(gameObject);
 
@@ -67,6 +85,7 @@ public class SaveGameManager : MonoBehaviour
 
     private void OnDestroy()
     {
+        if (Instance == this) Instance = null;
         SceneManager.sceneLoaded -= OnSceneLoaded;
     }
 
@@ -79,15 +98,17 @@ public class SaveGameManager : MonoBehaviour
             return;
         }
 
-        SaveData data = new SaveData();
-        data.sceneName = SceneManager.GetActiveScene().name;
-        data.playerPos = player.transform.position;
-        data.playerRot = player.transform.rotation;
+        SaveData data = new SaveData
+        {
+            sceneName = SceneManager.GetActiveScene().name,
+            playerPos = player.transform.position,
+            playerRot = player.transform.rotation,
+            collectedPickups = new List<string>(collectedPickupIds)
+        };
 
         if (ScoreManager.Instance != null) data.score = ScoreManager.Instance.Score;
         if (KeyManager.Instance != null) data.keys = KeyManager.Instance.Keys;
 
-        // Enemies
         foreach (var enemy in FindObjectsByType<EnemyMovement>(FindObjectsSortMode.None))
         {
             data.enemies.Add(new EnemyState
@@ -101,8 +122,6 @@ public class SaveGameManager : MonoBehaviour
             });
         }
 
-
-        // Doors by tag "Door"
         GameObject[] doorObjects = GameObject.FindGameObjectsWithTag("Door");
         foreach (var d in doorObjects)
         {
@@ -132,18 +151,29 @@ public class SaveGameManager : MonoBehaviour
         Time.timeScale = 1f;
 
         pending = JsonUtility.FromJson<SaveData>(File.ReadAllText(SavePath));
+
+        // make collected pickups available immediately (so pickups can delete themselves in Awake)
+        collectedPickupIds.Clear();
+        if (pending != null && pending.collectedPickups != null)
+        {
+            for (int i = 0; i < pending.collectedPickups.Count; i++)
+                collectedPickupIds.Add(pending.collectedPickups[i]);
+        }
+
         SceneManager.LoadScene(pending.sceneName);
     }
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
+        // only the active instance should apply (older ones may still exist until end of frame)
+        if (Instance != this) return;
         if (pending == null) return;
+
         StartCoroutine(ApplyAfterSpawn());
     }
 
     private IEnumerator ApplyAfterSpawn()
     {
-        // Wait for Player
         GameObject player = null;
         float t = 0f;
         while (player == null && t < 2f)
@@ -156,7 +186,6 @@ public class SaveGameManager : MonoBehaviour
         if (player != null)
             player.transform.SetPositionAndRotation(pending.playerPos, pending.playerRot);
 
-        // Wait for managers (score/keys)
         t = 0f;
         while ((ScoreManager.Instance == null || KeyManager.Instance == null) && t < 2f)
         {
@@ -167,7 +196,6 @@ public class SaveGameManager : MonoBehaviour
         if (ScoreManager.Instance != null) ScoreManager.Instance.SetScore(pending.score);
         if (KeyManager.Instance != null) KeyManager.Instance.SetKeys(pending.keys);
 
-        // Enemies
         var enemyMap = new Dictionary<string, EnemyState>();
         foreach (var st in pending.enemies) enemyMap[st.id] = st;
 
@@ -176,14 +204,10 @@ public class SaveGameManager : MonoBehaviour
             if (enemyMap.TryGetValue(enemy.gameObject.name, out var st))
             {
                 enemy.transform.SetPositionAndRotation(st.pos, st.rot);
-
-                // THIS is the part you asked about:
                 enemy.ApplySavedAIState(st.chasingPlayer, st.returning, st.waypointIndex);
             }
         }
 
-
-        // Doors
         var doorMap = new Dictionary<string, DoorState>();
         foreach (var ds in pending.doors) doorMap[ds.id] = ds;
 
