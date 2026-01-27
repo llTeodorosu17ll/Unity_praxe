@@ -5,7 +5,7 @@ public class PlayerMovement : MonoBehaviour
 {
     [Header("Move")]
     [SerializeField] private float moveSpeed = 5f;
-    [SerializeField] private float sprintSpeed = 8f; // NEW
+    [SerializeField] private float sprintMultiplier = 1.6f;
 
     [Header("Look")]
     [SerializeField] private Transform cameraTarget;
@@ -26,8 +26,6 @@ public class PlayerMovement : MonoBehaviour
     public Vector2 MoveInput { get; set; }
     public Vector2 LookInput { get; set; }
     public bool JumpRequested { get; set; }
-
-    // NEW
     public bool SprintHeld { get; set; }
 
     private void Awake()
@@ -88,7 +86,7 @@ public class PlayerMovement : MonoBehaviour
 
         verticalSpeed += gravity * Time.deltaTime;
 
-        float speed = SprintHeld ? sprintSpeed : moveSpeed;
+        float speed = moveSpeed * (SprintHeld ? sprintMultiplier : 1f);
 
         Vector3 velocity = moveDir * speed;
         velocity.y = verticalSpeed;
