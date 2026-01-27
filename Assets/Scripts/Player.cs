@@ -11,12 +11,6 @@ public class Player : MonoBehaviour
             movement = GetComponent<PlayerMovement>();
     }
 
-    private void Start()
-    {
-        Cursor.lockState = CursorLockMode.Locked;
-        Cursor.visible = false;
-    }
-
     public void OnMove(InputValue value)
     {
         if (movement == null) return;
@@ -29,9 +23,15 @@ public class Player : MonoBehaviour
         movement.LookInput = value.Get<Vector2>();
     }
 
-    public void OnJump(InputValue value)
+    public void OnJump()
     {
         if (movement == null) return;
-        if (value.isPressed) movement.TryJump();
+        movement.JumpRequested = true;
+    }
+
+    public void OnSprint(InputValue value)
+    {
+        if (movement == null) return;
+        movement.SprintHeld = value.isPressed;
     }
 }

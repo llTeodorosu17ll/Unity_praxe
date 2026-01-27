@@ -1,3 +1,4 @@
+// PickUpScript.cs
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -5,7 +6,6 @@ using UnityEngine.SceneManagement;
 public class PickUpScript : MonoBehaviour
 {
     [Header("Identity (for Save/Load)")]
-    [Tooltip("Unique ID of this pickup instance. Used to remember collected items after Load.")]
     [SerializeField] private string pickupId;
 
     [Header("Who can pick it up")]
@@ -30,47 +30,51 @@ public class PickUpScript : MonoBehaviour
 
     private void Awake()
     {
-        if (string.IsNullOrEmpty(pickupId))
-            pickupId = BuildAutoId();
+        EnsureId();
 
+        // If already collected in loaded save -> remove immediately
         if (!string.IsNullOrEmpty(pickupId) && SaveGameManager.IsPickupCollected(pickupId))
             Destroy(gameObject);
     }
 
-    private string BuildAutoId()
+    private void OnEnable()
     {
-        string scene = SceneManager.GetActiveScene().name;
-        string path = GetPath(transform);
-        Vector3 p = transform.position;
-        return $"AUTO|{scene}|{path}|{p.x:F3},{p.y:F3},{p.z:F3}";
+        // Safety: if object got enabled later (rare), remove it too
+        if (!string.IsNullOrEmpty(pickupId) && SaveGameManager.IsPickupCollected(pickupId))
+            Destroy(gameObject);
     }
 
-    private static string GetPath(Transform t)
+    private void EnsureId()
     {
-        string path = t.name;
+        // If you didn't bake IDs in editor, we generate a stable auto ID:
+        // based on scene + hierarchy path with sibling indexes (stable across reloads).
+        if (!string.IsNullOrEmpty(pickupId)) return;
+        pickupId = BuildStableAutoId();
+    }
+
+    private string BuildStableAutoId()
+    {
+        string scene = SceneManager.GetActiveScene().name;
+        return $"AUTO|{scene}|{GetPathWithIndices(transform)}";
+    }
+
+    private static string GetPathWithIndices(Transform t)
+    {
+        string part = $"{t.name}[{t.GetSiblingIndex()}]";
         while (t.parent != null)
         {
             t = t.parent;
-            path = t.name + "/" + path;
+            part = $"{t.name}[{t.GetSiblingIndex()}]/" + part;
         }
-        return path;
+        return part;
     }
 
 #if UNITY_EDITOR
     private void OnValidate()
     {
+        // Bake stable IDs into the scene (so saves work even after restarting Unity).
         if (string.IsNullOrEmpty(pickupId))
-            pickupId = System.Guid.NewGuid().ToString("N");
-
-        var all = FindObjectsByType<PickUpScript>(FindObjectsSortMode.None);
-        for (int i = 0; i < all.Length; i++)
-        {
-            if (all[i] != this && all[i] != null && all[i].pickupId == pickupId)
-            {
-                pickupId = System.Guid.NewGuid().ToString("N");
-                break;
-            }
-        }
+            pickupId = BuildStableAutoId();
     }
 #endif
 

@@ -51,7 +51,6 @@ public class SaveGameManager : MonoBehaviour
 
     private static SaveData pending;
 
-    // runtime registry of collected pickup IDs
     private static readonly HashSet<string> collectedPickupIds = new();
 
     public static void MarkPickupCollected(string pickupId)
@@ -68,13 +67,11 @@ public class SaveGameManager : MonoBehaviour
 
     private void Awake()
     {
-        // IMPORTANT: keep the newest scene instance (so UI references won't break)
+        // Keep newest scene instance so UI references don't become "Missing(Object)"
         if (Instance != null && Instance != this)
-        {
             Destroy(Instance.gameObject);
-        }
-        Instance = this;
 
+        Instance = this;
         DontDestroyOnLoad(gameObject);
 
         SceneManager.sceneLoaded -= OnSceneLoaded;
@@ -152,7 +149,6 @@ public class SaveGameManager : MonoBehaviour
 
         pending = JsonUtility.FromJson<SaveData>(File.ReadAllText(SavePath));
 
-        // make collected pickups available immediately (so pickups can delete themselves in Awake)
         collectedPickupIds.Clear();
         if (pending != null && pending.collectedPickups != null)
         {
@@ -165,10 +161,8 @@ public class SaveGameManager : MonoBehaviour
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
-        // only the active instance should apply (older ones may still exist until end of frame)
         if (Instance != this) return;
         if (pending == null) return;
-
         StartCoroutine(ApplyAfterSpawn());
     }
 
@@ -221,6 +215,23 @@ public class SaveGameManager : MonoBehaviour
                 door.ApplySavedState(ds.unlocked, ds.open);
         }
 
+        // BULLETPROOF: remove collected pickups again after load
+        RemoveCollectedPickupsInScene();
+
         pending = null;
+    }
+
+    private void RemoveCollectedPickupsInScene()
+    {
+        var pickups = FindObjectsByType<PickUpScript>(FindObjectsSortMode.None);
+        for (int i = 0; i < pickups.Length; i++)
+        {
+            var p = pickups[i];
+            if (p == null) continue;
+
+            string id = p.PickupId;
+            if (!string.IsNullOrEmpty(id) && collectedPickupIds.Contains(id))
+                Destroy(p.gameObject);
+        }
     }
 }

@@ -1,93 +1,98 @@
-// PlayerMovement.cs
 using UnityEngine;
-using Unity.Cinemachine;
 
 [RequireComponent(typeof(CharacterController))]
 public class PlayerMovement : MonoBehaviour
 {
-    [Header("Movement")]
-    [SerializeField] private float maxSpeed = 3.5f;
-    [SerializeField] private float acceleration = 15f;
-    [SerializeField] private float jumpHeight = 2f;
-    [SerializeField] private float gravityScale = 3f;
+    [Header("Move")]
+    [SerializeField] private float moveSpeed = 5f;
+    [SerializeField] private float sprintSpeed = 8f; // NEW
 
     [Header("Look")]
-    [SerializeField] private Vector2 lookSensitivity = new Vector2(0.1f, 0.1f);
-    [SerializeField] private float pitchLimit = 85f;
+    [SerializeField] private Transform cameraTarget;
+    [SerializeField] private float yawSensitivity = 0.12f;
+    [SerializeField] private float pitchSensitivity = 0.10f;
+    [SerializeField] private float minPitch = -35f;
+    [SerializeField] private float maxPitch = 70f;
 
-    [Header("References")]
-    [SerializeField] private CinemachineCamera tpCamera;
-    [SerializeField] private CharacterController controller;
+    [Header("Jump/Gravity")]
+    [SerializeField] private float jumpHeight = 1.2f;
+    [SerializeField] private float gravity = -20f;
 
-    public Vector2 MoveInput;
-    public Vector2 LookInput;
+    private CharacterController controller;
+    private float verticalSpeed;
+    private float yaw;
+    private float pitch;
 
-    private float currentPitch;
-    private float verticalVelocity;
-    private Vector3 currentVelocity;
+    public Vector2 MoveInput { get; set; }
+    public Vector2 LookInput { get; set; }
+    public bool JumpRequested { get; set; }
+
+    // NEW
+    public bool SprintHeld { get; set; }
 
     private void Awake()
     {
-        if (controller == null)
-            controller = GetComponent<CharacterController>();
+        controller = GetComponent<CharacterController>();
 
-        if (tpCamera == null)
-            Debug.LogWarning($"{nameof(PlayerMovement)}: tpCamera is not assigned in Inspector.");
-    }
+        if (cameraTarget == null)
+        {
+            var t = transform.Find("CameraTarget");
+            if (t != null) cameraTarget = t;
+        }
 
-    private void OnValidate()
-    {
-        if (controller == null)
-            controller = GetComponent<CharacterController>();
+        yaw = transform.eulerAngles.y;
+
+        pitch = 0f;
+        if (cameraTarget != null)
+        {
+            float x = cameraTarget.localEulerAngles.x;
+            if (x > 180f) x -= 360f;
+            pitch = x;
+        }
     }
 
     private void Update()
     {
-        MoveUpdate();
-        LookUpdate();
+        HandleLook();
+        HandleMoveAndJump();
     }
 
-    public void TryJump()
+    private void HandleLook()
     {
-        if (controller == null) return;
-        if (!controller.isGrounded) return;
+        yaw += LookInput.x * yawSensitivity;
+        pitch -= LookInput.y * pitchSensitivity;
+        pitch = Mathf.Clamp(pitch, minPitch, maxPitch);
 
-        verticalVelocity = Mathf.Sqrt(jumpHeight * -2f * Physics.gravity.y * gravityScale);
+        transform.rotation = Quaternion.Euler(0f, yaw, 0f);
+
+        if (cameraTarget != null)
+            cameraTarget.localRotation = Quaternion.Euler(pitch, 0f, 0f);
     }
 
-    private void MoveUpdate()
+    private void HandleMoveAndJump()
     {
-        if (controller == null) return;
+        bool grounded = controller.isGrounded;
+        if (grounded && verticalSpeed < 0f) verticalSpeed = -2f;
 
-        Vector3 dir = transform.forward * MoveInput.y + transform.right * MoveInput.x;
-        dir.y = 0f;
+        Vector3 input = new Vector3(MoveInput.x, 0f, MoveInput.y);
+        if (input.sqrMagnitude > 1f) input.Normalize();
 
-        if (dir.sqrMagnitude > 1f) dir.Normalize();
+        Vector3 moveDir = transform.right * input.x + transform.forward * input.z;
 
-        Vector3 targetVel = dir * maxSpeed;
-        currentVelocity = Vector3.MoveTowards(currentVelocity, targetVel, acceleration * Time.deltaTime);
+        if (JumpRequested)
+        {
+            JumpRequested = false;
+            if (grounded)
+                verticalSpeed = Mathf.Sqrt(jumpHeight * -2f * gravity);
+        }
 
-        if (controller.isGrounded && verticalVelocity <= 0.01f)
-            verticalVelocity = -3f;
+        verticalSpeed += gravity * Time.deltaTime;
 
-        verticalVelocity += Physics.gravity.y * gravityScale * Time.deltaTime;
+        float speed = SprintHeld ? sprintSpeed : moveSpeed;
 
-        Vector3 motion = new Vector3(currentVelocity.x, verticalVelocity, currentVelocity.z);
-        controller.Move(motion * Time.deltaTime);
-    }
+        Vector3 velocity = moveDir * speed;
+        velocity.y = verticalSpeed;
 
-    private void LookUpdate()
-    {
-        if (tpCamera == null) return;
-
-        float yaw = LookInput.x * lookSensitivity.x;
-        float pitch = LookInput.y * lookSensitivity.y;
-
-        transform.Rotate(Vector3.up * yaw);
-
-        currentPitch -= pitch;
-        currentPitch = Mathf.Clamp(currentPitch, -pitchLimit, pitchLimit);
-
-        tpCamera.transform.localRotation = Quaternion.Euler(currentPitch, 0f, 0f);
+        controller.Move(velocity * Time.deltaTime);
     }
 }

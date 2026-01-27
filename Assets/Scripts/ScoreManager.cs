@@ -1,3 +1,4 @@
+// ScoreManager.cs
 using UnityEngine;
 using TMPro;
 
@@ -9,7 +10,6 @@ public class ScoreManager : MonoBehaviour
     [SerializeField] private string prefix = "Score = ";
 
     private int score;
-
     public int Score => score;
 
     private void Awake()
@@ -30,7 +30,6 @@ public class ScoreManager : MonoBehaviour
     public void Add(int amount)
     {
         score += amount;
-        score = Mathf.Max(0, score);
         RefreshUI();
     }
 

@@ -1,4 +1,3 @@
-// PauseMenu.cs
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
@@ -9,13 +8,16 @@ public class PauseMenu : MonoBehaviour
     [SerializeField] private GameObject pausePanel;
     [SerializeField] private GameObject optionsPanel;
 
-    [Header("Menu Music (ONE track for both panels)")]
+    [Header("Disable While Paused")]
+    [SerializeField] private MonoBehaviour[] disableOnPause; // drag PlayerMovement (+ Player) here
+
+    [Header("Menu Music (optional)")]
     [SerializeField] private AudioSource menuMusicSource;
 
-    [Header("Options UI")]
+    [Header("Options UI (optional)")]
     [SerializeField] private Slider volumeSlider;
 
-    [Header("Save/Load (optional reference)")]
+    [Header("Save/Load (optional)")]
     [SerializeField] private SaveGameManager saveGameManager;
 
     private const string VolumeKey = "volume";
@@ -29,8 +31,6 @@ public class PauseMenu : MonoBehaviour
         Time.timeScale = 1f;
         isPaused = false;
 
-        SetupSource(menuMusicSource);
-
         float v = PlayerPrefs.GetFloat(VolumeKey, 1f);
         ApplyVolume(v);
 
@@ -38,13 +38,15 @@ public class PauseMenu : MonoBehaviour
         {
             volumeSlider.minValue = 0f;
             volumeSlider.maxValue = 1f;
-            volumeSlider.wholeNumbers = false;
             volumeSlider.value = v;
             volumeSlider.onValueChanged.AddListener(OnVolumeChanged);
         }
 
-        // runtime safety: make buttons work even if Inspector shows Missing(Object)
-        BindButtonsByName();
+        SetupMusic(menuMusicSource);
+
+        // lock cursor at start (gameplay)
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
     }
 
     private void OnDestroy()
@@ -70,11 +72,18 @@ public class PauseMenu : MonoBehaviour
         if (pausePanel != null) pausePanel.SetActive(true);
         if (optionsPanel != null) optionsPanel.SetActive(false);
 
+        // stop gameplay scripts so look/move doesn't run in pause
+        SetGameplayEnabled(false);
+
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
 
-        // start from beginning only when entering pause mode
-        PlayFromStart(menuMusicSource);
+        // start menu music from beginning when opening pause
+        if (menuMusicSource != null && menuMusicSource.clip != null && !menuMusicSource.isPlaying)
+        {
+            menuMusicSource.time = 0f;
+            menuMusicSource.Play();
+        }
     }
 
     public void Resume()
@@ -85,30 +94,33 @@ public class PauseMenu : MonoBehaviour
         if (pausePanel != null) pausePanel.SetActive(false);
         if (optionsPanel != null) optionsPanel.SetActive(false);
 
+        SetGameplayEnabled(true);
+
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
 
-        StopAndReset(menuMusicSource);
+        // stop menu music when leaving pause
+        if (menuMusicSource != null)
+        {
+            menuMusicSource.Stop();
+            menuMusicSource.time = 0f;
+        }
     }
 
     public void OpenOptions()
     {
         if (!isPaused) return;
-
         if (pausePanel != null) pausePanel.SetActive(false);
         if (optionsPanel != null) optionsPanel.SetActive(true);
-
-        // DO NOT stop/restart music here (it must continue)
+        // music continues
     }
 
     public void CloseOptions()
     {
         if (!isPaused) return;
-
         if (optionsPanel != null) optionsPanel.SetActive(false);
         if (pausePanel != null) pausePanel.SetActive(true);
-
-        // DO NOT stop/restart music here (it must continue)
+        // music continues
     }
 
     public void SaveGame()
@@ -123,9 +135,43 @@ public class PauseMenu : MonoBehaviour
         if (m != null)
         {
             Time.timeScale = 1f;
-            StopAndReset(menuMusicSource);
+            isPaused = false;
+
+            if (pausePanel != null) pausePanel.SetActive(false);
+            if (optionsPanel != null) optionsPanel.SetActive(false);
+
+            SetGameplayEnabled(true);
+
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+
+            if (menuMusicSource != null)
+            {
+                menuMusicSource.Stop();
+                menuMusicSource.time = 0f;
+            }
+
             m.Load();
         }
+    }
+
+    private void SetGameplayEnabled(bool enabled)
+    {
+        if (disableOnPause == null) return;
+        for (int i = 0; i < disableOnPause.Length; i++)
+        {
+            if (disableOnPause[i] != null)
+                disableOnPause[i].enabled = enabled;
+        }
+    }
+
+    private void SetupMusic(AudioSource src)
+    {
+        if (src == null) return;
+        src.playOnAwake = false;
+        src.loop = true;
+        src.spatialBlend = 0f;
+        src.volume = AudioListener.volume;
     }
 
     private void OnVolumeChanged(float v)
@@ -142,62 +188,5 @@ public class PauseMenu : MonoBehaviour
 
         if (menuMusicSource != null)
             menuMusicSource.volume = v;
-    }
-
-    private void SetupSource(AudioSource src)
-    {
-        if (src == null) return;
-        src.playOnAwake = false;
-        src.loop = true;
-        src.spatialBlend = 0f;
-        src.volume = AudioListener.volume;
-    }
-
-    private void PlayFromStart(AudioSource src)
-    {
-        if (src == null || src.clip == null) return;
-        if (src.isPlaying) return; // keeps it continuous when switching panels
-        src.Stop();
-        src.time = 0f;
-        src.volume = AudioListener.volume;
-        src.Play();
-    }
-
-    private void StopAndReset(AudioSource src)
-    {
-        if (src == null) return;
-        src.Stop();
-        src.time = 0f;
-    }
-
-    private void BindButtonsByName()
-    {
-        // Finds buttons by GameObject name (case-insensitive):
-        // Resume, Save, Load, Options, Back
-        Bind("Resume", Resume);
-        Bind("Save", SaveGame);
-        Bind("Load", LoadGame);
-        Bind("Options", OpenOptions);
-        Bind("Back", CloseOptions);
-    }
-
-    private void Bind(string buttonName, UnityEngine.Events.UnityAction action)
-    {
-        var btn = FindButton(buttonName);
-        if (btn == null) return;
-
-        btn.onClick.RemoveListener(action);
-        btn.onClick.AddListener(action);
-    }
-
-    private Button FindButton(string name)
-    {
-        var buttons = GetComponentsInChildren<Button>(true);
-        for (int i = 0; i < buttons.Length; i++)
-        {
-            if (buttons[i] != null && buttons[i].gameObject.name.ToLower() == name.ToLower())
-                return buttons[i];
-        }
-        return null;
     }
 }

@@ -1,3 +1,4 @@
+// KeyManager.cs
 using UnityEngine;
 using TMPro;
 
@@ -9,18 +10,7 @@ public class KeyManager : MonoBehaviour
     [SerializeField] private string prefix = "Keys = ";
 
     private int m_keys;
-
-    public int Keys
-    {
-        get => m_keys;
-        private set
-        {
-            m_keys = Mathf.Max(0, value);
-
-            if (keysText != null)
-                keysText.text = prefix + m_keys;
-        }
-    }
+    public int Keys => m_keys;
 
     private void Awake()
     {
@@ -34,20 +24,30 @@ public class KeyManager : MonoBehaviour
 
     private void Start()
     {
-        Keys = Keys; // refresh UI
+        RefreshUI();
     }
 
-    public void Add(int amount = 1) => Keys += amount;
-
-    public bool TrySpend(int amount = 1)
+    public void Add(int amount)
     {
-        if (Keys < amount) return false;
-        Keys -= amount;
+        SetKeys(m_keys + amount);
+    }
+
+    public bool TrySpend(int amount)
+    {
+        if (m_keys < amount) return false;
+        SetKeys(m_keys - amount);
         return true;
     }
 
     public void SetKeys(int value)
     {
-        Keys = value;
+        m_keys = Mathf.Max(0, value);
+        RefreshUI();
+    }
+
+    private void RefreshUI()
+    {
+        if (keysText != null)
+            keysText.text = prefix + m_keys;
     }
 }
