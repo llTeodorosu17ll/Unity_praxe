@@ -1,6 +1,5 @@
-// PickUpScript.cs
+using System;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
 [DisallowMultipleComponent]
 public class PickUpScript : MonoBehaviour
@@ -13,7 +12,7 @@ public class PickUpScript : MonoBehaviour
 
     [Header("Effects (optional)")]
     [SerializeField] private PickupEffect effect;
-    [SerializeField] private bool destroyOnPickup = true;
+    [SerializeField] private bool disableOnPickup = true;
 
     [Header("Audio (optional)")]
     [SerializeField] private AudioClip pickupClip;
@@ -28,55 +27,24 @@ public class PickUpScript : MonoBehaviour
 
     public string PickupId => pickupId;
 
+    // =========================
+    // Unity native methods (order)
+    // =========================
     private void Awake()
     {
-        EnsureId();
+        EnsureIdRuntime();
 
         // If already collected in loaded save -> remove immediately
         if (!string.IsNullOrEmpty(pickupId) && SaveGameManager.IsPickupCollected(pickupId))
-            Destroy(gameObject);
+            gameObject.SetActive(false);
     }
 
     private void OnEnable()
     {
-        // Safety: if object got enabled later (rare), remove it too
+        // Safety: if object got enabled later, remove it too
         if (!string.IsNullOrEmpty(pickupId) && SaveGameManager.IsPickupCollected(pickupId))
-            Destroy(gameObject);
+            gameObject.SetActive(false);
     }
-
-    private void EnsureId()
-    {
-        // If you didn't bake IDs in editor, we generate a stable auto ID:
-        // based on scene + hierarchy path with sibling indexes (stable across reloads).
-        if (!string.IsNullOrEmpty(pickupId)) return;
-        pickupId = BuildStableAutoId();
-    }
-
-    private string BuildStableAutoId()
-    {
-        string scene = SceneManager.GetActiveScene().name;
-        return $"AUTO|{scene}|{GetPathWithIndices(transform)}";
-    }
-
-    private static string GetPathWithIndices(Transform t)
-    {
-        string part = $"{t.name}[{t.GetSiblingIndex()}]";
-        while (t.parent != null)
-        {
-            t = t.parent;
-            part = $"{t.name}[{t.GetSiblingIndex()}]/" + part;
-        }
-        return part;
-    }
-
-#if UNITY_EDITOR
-    private void OnValidate()
-    {
-        // Bake stable IDs into the scene (so saves work even after restarting Unity).
-        if (string.IsNullOrEmpty(pickupId))
-            pickupId = BuildStableAutoId();
-    }
-#endif
 
     private void OnTriggerEnter(Collider other)
     {
@@ -105,8 +73,25 @@ public class PickUpScript : MonoBehaviour
             Destroy(vfx, vfxLifetime);
         }
 
-        if (destroyOnPickup) Destroy(gameObject);
-        else gameObject.SetActive(false);
+        if (disableOnPickup) gameObject.SetActive(false);
+        else Destroy(gameObject);
+    }
+
+    // =========================
+    // Internal helpers
+    // =========================
+    private void EnsureIdRuntime()
+    {
+        // In builds, we must never generate IDs based on hierarchy/path.
+        // We only generate GUID if missing.
+        if (string.IsNullOrEmpty(pickupId))
+            pickupId = NewGuid();
+    }
+
+    private static string NewGuid()
+    {
+        // Compact but safe
+        return Guid.NewGuid().ToString("N");
     }
 
     private static void Play2DOneShot(AudioClip clip, float volume)
@@ -115,7 +100,36 @@ public class PickUpScript : MonoBehaviour
         var src = go.AddComponent<AudioSource>();
         src.spatialBlend = 0f;
         src.PlayOneShot(clip, volume);
-
-        UnityEngine.Object.Destroy(go, clip.length + 0.1f);
+        Destroy(go, clip.length + 0.1f);
     }
+
+#if UNITY_EDITOR
+    // Runs in Editor when you duplicate objects too.
+    private void OnValidate()
+    {
+        // Ensure we have an ID
+        if (string.IsNullOrEmpty(pickupId))
+        {
+            pickupId = NewGuid();
+            return;
+        }
+
+        // IMPORTANT: Unity duplicates serialized fields when you duplicate GameObjects.
+        // So we must detect duplicates and regenerate.
+        var all = FindObjectsByType<PickUpScript>(FindObjectsSortMode.None);
+
+        int sameCount = 0;
+        for (int i = 0; i < all.Length; i++)
+        {
+            if (all[i] == null) continue;
+            if (all[i].pickupId == pickupId) sameCount++;
+            if (sameCount > 1) break;
+        }
+
+        if (sameCount > 1)
+        {
+            pickupId = NewGuid();
+        }
+    }
+#endif
 }

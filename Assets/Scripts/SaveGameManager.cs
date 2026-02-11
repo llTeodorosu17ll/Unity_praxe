@@ -1,9 +1,10 @@
-﻿// SaveGameManager.cs
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
+using UnityEngine.AI;
 using UnityEngine.SceneManagement;
+using UnityEngine.InputSystem;
 
 [System.Serializable]
 public class EnemyState
@@ -67,7 +68,6 @@ public class SaveGameManager : MonoBehaviour
 
     private void Awake()
     {
-        // Keep newest scene instance so UI references don't become "Missing(Object)"
         if (Instance != null && Instance != this)
             Destroy(Instance.gameObject);
 
@@ -145,6 +145,9 @@ public class SaveGameManager : MonoBehaviour
             return;
         }
 
+        // stop input callbacks BEFORE scene unload destroys PlayerInput
+        DeactivateAllPlayerInputs();
+
         Time.timeScale = 1f;
 
         pending = JsonUtility.FromJson<SaveData>(File.ReadAllText(SavePath));
@@ -168,20 +171,31 @@ public class SaveGameManager : MonoBehaviour
 
     private IEnumerator ApplyAfterSpawn()
     {
+        yield return null;
+
         GameObject player = null;
         float t = 0f;
-        while (player == null && t < 2f)
+        const float maxWait = 10f;
+
+        while (player == null && t < maxWait)
         {
             player = GameObject.FindGameObjectWithTag("Player");
             t += Time.unscaledDeltaTime;
             yield return null;
         }
 
-        if (player != null)
-            player.transform.SetPositionAndRotation(pending.playerPos, pending.playerRot);
+        if (player == null)
+        {
+            Debug.LogError("SaveGameManager: Player not found after scene load. Check Player tag.");
+            pending = null;
+            yield break;
+        }
+
+        ApplyPlayerTransformSafely(player, pending.playerPos, pending.playerRot);
+        yield return null;
 
         t = 0f;
-        while ((ScoreManager.Instance == null || KeyManager.Instance == null) && t < 2f)
+        while ((ScoreManager.Instance == null || KeyManager.Instance == null) && t < maxWait)
         {
             t += Time.unscaledDeltaTime;
             yield return null;
@@ -215,13 +229,42 @@ public class SaveGameManager : MonoBehaviour
                 door.ApplySavedState(ds.unlocked, ds.open);
         }
 
-        // BULLETPROOF: remove collected pickups again after load
-        RemoveCollectedPickupsInScene();
+        ApplyCollectedPickupsInScene();
+
+        // re-enable input after everything is stable
+        ReactivateAllPlayerInputs();
 
         pending = null;
     }
 
-    private void RemoveCollectedPickupsInScene()
+    private void ApplyPlayerTransformSafely(GameObject player, Vector3 pos, Quaternion rot)
+    {
+        var cc = player.GetComponent<CharacterController>();
+        var agent = player.GetComponent<NavMeshAgent>();
+        var rb = player.GetComponent<Rigidbody>();
+
+        bool ccWasEnabled = cc != null && cc.enabled;
+        bool agentWasEnabled = agent != null && agent.enabled;
+        bool rbWasKinematic = rb != null && rb.isKinematic;
+
+        if (agent != null) agent.enabled = false;
+        if (cc != null) cc.enabled = false;
+
+        if (rb != null)
+        {
+            rb.isKinematic = true;
+            rb.linearVelocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+        }
+
+        player.transform.SetPositionAndRotation(pos, rot);
+
+        if (rb != null) rb.isKinematic = rbWasKinematic;
+        if (cc != null) cc.enabled = ccWasEnabled;
+        if (agent != null) agent.enabled = agentWasEnabled;
+    }
+
+    private void ApplyCollectedPickupsInScene()
     {
         var pickups = FindObjectsByType<PickUpScript>(FindObjectsSortMode.None);
         for (int i = 0; i < pickups.Length; i++)
@@ -231,7 +274,30 @@ public class SaveGameManager : MonoBehaviour
 
             string id = p.PickupId;
             if (!string.IsNullOrEmpty(id) && collectedPickupIds.Contains(id))
-                Destroy(p.gameObject);
+                p.gameObject.SetActive(false);
+        }
+    }
+
+    private static void DeactivateAllPlayerInputs()
+    {
+        var inputs = Object.FindObjectsByType<PlayerInput>(FindObjectsSortMode.None);
+        for (int i = 0; i < inputs.Length; i++)
+        {
+            var pi = inputs[i];
+            if (pi == null) continue;
+            pi.DeactivateInput();
+        }
+    }
+
+    private static void ReactivateAllPlayerInputs()
+    {
+        var inputs = Object.FindObjectsByType<PlayerInput>(FindObjectsSortMode.None);
+        for (int i = 0; i < inputs.Length; i++)
+        {
+            var pi = inputs[i];
+            if (pi == null) continue;
+            if (!pi.isActiveAndEnabled) continue;
+            pi.ActivateInput();
         }
     }
 }

@@ -11,7 +11,7 @@ GameObject:
   - component: {fileID: 4157291799809428944}
   - component: {fileID: 6684401138509268140}
   - component: {fileID: 7691518072766182066}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: DoorMech
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -56,7 +56,7 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 5, y: 4, z: 2}
+  m_Size: {x: 5, y: 4, z: 3}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!114 &7691518072766182066
 MonoBehaviour:
@@ -71,8 +71,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DoorInteract
   playerTag: Player
-  navObstacle: {fileID: 7411248923978730599}
   keysCost: 1
+  navObstacle: {fileID: 7411248923978730599}
   animator: {fileID: 8472046332282515017}
   openTriggerName: Open
   closeTriggerName: Close
@@ -82,6 +82,7 @@ MonoBehaviour:
   msgClose: E - Close
   msgNeedKey: Need a key
   startUnlocked: 0
+  startOpen: 0
   debugLogs: 0
 --- !u!1 &1423820277277758375
 GameObject:
@@ -93,7 +94,7 @@ GameObject:
   m_Component:
   - component: {fileID: 3707543143479043907}
   - component: {fileID: 7411248923978730599}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: ObstacleBlocker
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -145,7 +146,7 @@ GameObject:
   - component: {fileID: 118447233058680429}
   - component: {fileID: 8472046332282515017}
   - component: {fileID: 137648380431893326}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: MainDoor
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -305,7 +306,7 @@ GameObject:
   - component: {fileID: 4889567261408640869}
   - component: {fileID: 5014590342344026099}
   - component: {fileID: 799452001221959757}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Cube
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -416,7 +417,7 @@ GameObject:
   - component: {fileID: 7613152620526308193}
   - component: {fileID: 7146224285282496548}
   - component: {fileID: 6499679924902268240}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Cube (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
