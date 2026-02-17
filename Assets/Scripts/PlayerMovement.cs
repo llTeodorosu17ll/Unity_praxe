@@ -61,6 +61,9 @@ public class PlayerMovement : MonoBehaviour
     public bool CrouchHeld { get; set; }
     public bool CrouchPressedThisFrame { get; set; }
 
+    public float GetYaw() => yaw;
+    public float GetPitch() => pitch;
+
     private void Awake()
     {
         controller = GetComponent<CharacterController>();
@@ -93,6 +96,12 @@ public class PlayerMovement : MonoBehaviour
 
     private void Update()
     {
+        if (!enabled)
+            return;
+
+        if (controller == null || !controller.enabled)
+            return;
+
         HandleLook();
         HandleCrouch();
         HandleMoveAndJump();
@@ -100,6 +109,7 @@ public class PlayerMovement : MonoBehaviour
 
         CrouchPressedThisFrame = false;
     }
+
 
     private void HandleLook()
     {
@@ -157,6 +167,8 @@ public class PlayerMovement : MonoBehaviour
 
     private void HandleMoveAndJump()
     {
+        if (controller == null || !controller.enabled)
+            return;
         bool grounded = controller.isGrounded;
 
         if (grounded && verticalSpeed < 0f)
@@ -207,5 +219,16 @@ public class PlayerMovement : MonoBehaviour
         animSpeed = Mathf.Lerp(animSpeed, normalized, 1f - Mathf.Exp(-animSmooth * Time.deltaTime));
 
         animator.SetFloat(speedParam, animSpeed);
+    }
+
+    public void SetLookRotation(float newYaw, float newPitch)
+    {
+        yaw = newYaw;
+        pitch = newPitch;
+
+        transform.rotation = Quaternion.Euler(0f, yaw, 0f);
+
+        if (cameraTarget != null)
+            cameraTarget.localRotation = Quaternion.Euler(pitch, 0f, 0f);
     }
 }

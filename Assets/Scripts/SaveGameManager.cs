@@ -4,7 +4,7 @@ using System.IO;
 using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.SceneManagement;
-using UnityEngine.InputSystem;
+using UnityEngine.UI;
 
 [System.Serializable]
 public class EnemyState
@@ -12,7 +12,6 @@ public class EnemyState
     public string id;
     public Vector3 pos;
     public Quaternion rot;
-
     public bool chasingPlayer;
     public bool returning;
     public int waypointIndex;
@@ -30,15 +29,16 @@ public class DoorState
 public class SaveData
 {
     public string sceneName;
-
     public Vector3 playerPos;
     public Quaternion playerRot;
+
+    public float playerYaw;
+    public float playerPitch;
 
     public int score;
     public int keys;
 
     public List<string> collectedPickups = new();
-
     public List<EnemyState> enemies = new();
     public List<DoorState> doors = new();
 }
@@ -47,64 +47,63 @@ public class SaveGameManager : MonoBehaviour
 {
     public static SaveGameManager Instance { get; private set; }
 
+    [Header("References")]
+    [SerializeField] private ScoreManager scoreManager;
+    [SerializeField] private KeyManager keyManager;
+
     private const string FileName = "save.json";
     private string SavePath => Path.Combine(Application.persistentDataPath, FileName);
 
-    private static SaveData pending;
-
-    private static readonly HashSet<string> collectedPickupIds = new();
-
-    public static void MarkPickupCollected(string pickupId)
-    {
-        if (string.IsNullOrEmpty(pickupId)) return;
-        collectedPickupIds.Add(pickupId);
-    }
-
-    public static bool IsPickupCollected(string pickupId)
-    {
-        if (string.IsNullOrEmpty(pickupId)) return false;
-        return collectedPickupIds.Contains(pickupId);
-    }
+    private SaveData pending;
+    private readonly HashSet<string> collectedPickupIds = new();
+    private bool isLoading;
 
     private void Awake()
     {
         if (Instance != null && Instance != this)
-            Destroy(Instance.gameObject);
+        {
+            Destroy(gameObject);
+            return;
+        }
 
         Instance = this;
         DontDestroyOnLoad(gameObject);
 
-        SceneManager.sceneLoaded -= OnSceneLoaded;
         SceneManager.sceneLoaded += OnSceneLoaded;
-
-        Time.timeScale = 1f;
     }
 
     private void OnDestroy()
     {
-        if (Instance == this) Instance = null;
         SceneManager.sceneLoaded -= OnSceneLoaded;
     }
 
+    // ================= SAVE =================
+
     public void Save()
     {
+        if (isLoading) return;
+
         var player = GameObject.FindGameObjectWithTag("Player");
-        if (player == null)
-        {
-            Debug.LogError("SaveGameManager: Player with tag 'Player' not found.");
-            return;
-        }
+        if (player == null) return;
+
+        var movement = player.GetComponent<PlayerMovement>();
+
+        scoreManager = FindFirstObjectByType<ScoreManager>();
+        keyManager = FindFirstObjectByType<KeyManager>();
 
         SaveData data = new SaveData
         {
             sceneName = SceneManager.GetActiveScene().name,
             playerPos = player.transform.position,
             playerRot = player.transform.rotation,
+
+            playerYaw = movement != null ? movement.GetYaw() : 0f,
+            playerPitch = movement != null ? movement.GetPitch() : 0f,
+
+            score = scoreManager != null ? scoreManager.Score : 0,
+            keys = keyManager != null ? keyManager.Keys : 0,
             collectedPickups = new List<string>(collectedPickupIds)
         };
-
-        if (ScoreManager.Instance != null) data.score = ScoreManager.Instance.Score;
-        if (KeyManager.Instance != null) data.keys = KeyManager.Instance.Keys;
 
         foreach (var enemy in FindObjectsByType<EnemyMovement>(FindObjectsSortMode.None))
         {
@@ -119,8 +118,7 @@ public class SaveGameManager : MonoBehaviour
             });
         }
 
-        GameObject[] doorObjects = GameObject.FindGameObjectsWithTag("Door");
-        foreach (var d in doorObjects)
+        foreach (var d in GameObject.FindGameObjectsWithTag("Door"))
         {
             var door = d.GetComponent<DoorInteract>();
             if (door == null) continue;
@@ -134,170 +132,144 @@ public class SaveGameManager : MonoBehaviour
         }
 
         File.WriteAllText(SavePath, JsonUtility.ToJson(data, true));
-        Debug.Log("Saved to: " + SavePath);
+        Debug.Log("Game saved.");
     }
+
+    // ================= LOAD =================
 
     public void Load()
     {
+        if (isLoading) return;
+
         if (!File.Exists(SavePath))
         {
-            Debug.LogWarning("SaveGameManager: No save file found at: " + SavePath);
+            Debug.LogWarning("No save file found.");
             return;
         }
-
-        // stop input callbacks BEFORE scene unload destroys PlayerInput
-        DeactivateAllPlayerInputs();
-
-        Time.timeScale = 1f;
 
         pending = JsonUtility.FromJson<SaveData>(File.ReadAllText(SavePath));
 
         collectedPickupIds.Clear();
-        if (pending != null && pending.collectedPickups != null)
+        if (pending.collectedPickups != null)
         {
-            for (int i = 0; i < pending.collectedPickups.Count; i++)
-                collectedPickupIds.Add(pending.collectedPickups[i]);
+            foreach (var id in pending.collectedPickups)
+                collectedPickupIds.Add(id);
         }
 
+        isLoading = true;
         SceneManager.LoadScene(pending.sceneName);
     }
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
-        if (Instance != this) return;
-        if (pending == null) return;
+        if (!isLoading || pending == null) return;
         StartCoroutine(ApplyAfterSpawn());
     }
 
     private IEnumerator ApplyAfterSpawn()
     {
         yield return null;
+        yield return null;
 
-        GameObject player = null;
-        float t = 0f;
-        const float maxWait = 10f;
-
-        while (player == null && t < maxWait)
-        {
-            player = GameObject.FindGameObjectWithTag("Player");
-            t += Time.unscaledDeltaTime;
-            yield return null;
-        }
-
+        var player = GameObject.FindGameObjectWithTag("Player");
         if (player == null)
         {
-            Debug.LogError("SaveGameManager: Player not found after scene load. Check Player tag.");
-            pending = null;
+            isLoading = false;
             yield break;
         }
 
-        ApplyPlayerTransformSafely(player, pending.playerPos, pending.playerRot);
+        var movement = player.GetComponent<PlayerMovement>();
+        var cc = player.GetComponent<CharacterController>();
+        var agent = player.GetComponent<NavMeshAgent>();
+
+        bool ccWas = cc != null && cc.enabled;
+        bool agentWas = agent != null && agent.enabled;
+
+        if (agent != null) agent.enabled = false;
+        if (cc != null) cc.enabled = false;
+
+        player.transform.SetPositionAndRotation(pending.playerPos, pending.playerRot);
+
+        if (movement != null)
+            movement.SetLookRotation(pending.playerYaw, pending.playerPitch);
+
         yield return null;
 
-        t = 0f;
-        while ((ScoreManager.Instance == null || KeyManager.Instance == null) && t < maxWait)
-        {
-            t += Time.unscaledDeltaTime;
-            yield return null;
-        }
+        if (cc != null) cc.enabled = ccWas;
+        if (agent != null) agent.enabled = agentWas;
 
-        if (ScoreManager.Instance != null) ScoreManager.Instance.SetScore(pending.score);
-        if (KeyManager.Instance != null) KeyManager.Instance.SetKeys(pending.keys);
+        scoreManager = FindFirstObjectByType<ScoreManager>();
+        keyManager = FindFirstObjectByType<KeyManager>();
 
-        var enemyMap = new Dictionary<string, EnemyState>();
-        foreach (var st in pending.enemies) enemyMap[st.id] = st;
+        if (scoreManager != null)
+            scoreManager.SetScore(pending.score);
+
+        if (keyManager != null)
+            keyManager.SetKeys(pending.keys);
+
+        RestoreEnemies();
+        RestoreDoors();
+        ApplyCollectedPickupsInScene();
+
+        pending = null;
+        isLoading = false;
+
+        Debug.Log("Load complete.");
+    }
+
+    private void RestoreEnemies()
+    {
+        var map = new Dictionary<string, EnemyState>();
+        foreach (var st in pending.enemies)
+            map[st.id] = st;
 
         foreach (var enemy in FindObjectsByType<EnemyMovement>(FindObjectsSortMode.None))
         {
-            if (enemyMap.TryGetValue(enemy.gameObject.name, out var st))
+            if (map.TryGetValue(enemy.gameObject.name, out var st))
             {
                 enemy.transform.SetPositionAndRotation(st.pos, st.rot);
                 enemy.ApplySavedAIState(st.chasingPlayer, st.returning, st.waypointIndex);
             }
         }
+    }
 
-        var doorMap = new Dictionary<string, DoorState>();
-        foreach (var ds in pending.doors) doorMap[ds.id] = ds;
+    private void RestoreDoors()
+    {
+        var map = new Dictionary<string, DoorState>();
+        foreach (var ds in pending.doors)
+            map[ds.id] = ds;
 
-        GameObject[] doorObjects = GameObject.FindGameObjectsWithTag("Door");
-        foreach (var d in doorObjects)
+        foreach (var d in GameObject.FindGameObjectsWithTag("Door"))
         {
             var door = d.GetComponent<DoorInteract>();
             if (door == null) continue;
 
-            if (doorMap.TryGetValue(door.DoorId, out var ds))
+            if (map.TryGetValue(door.DoorId, out var ds))
                 door.ApplySavedState(ds.unlocked, ds.open);
         }
-
-        ApplyCollectedPickupsInScene();
-
-        // re-enable input after everything is stable
-        ReactivateAllPlayerInputs();
-
-        pending = null;
-    }
-
-    private void ApplyPlayerTransformSafely(GameObject player, Vector3 pos, Quaternion rot)
-    {
-        var cc = player.GetComponent<CharacterController>();
-        var agent = player.GetComponent<NavMeshAgent>();
-        var rb = player.GetComponent<Rigidbody>();
-
-        bool ccWasEnabled = cc != null && cc.enabled;
-        bool agentWasEnabled = agent != null && agent.enabled;
-        bool rbWasKinematic = rb != null && rb.isKinematic;
-
-        if (agent != null) agent.enabled = false;
-        if (cc != null) cc.enabled = false;
-
-        if (rb != null)
-        {
-            rb.isKinematic = true;
-            rb.linearVelocity = Vector3.zero;
-            rb.angularVelocity = Vector3.zero;
-        }
-
-        player.transform.SetPositionAndRotation(pos, rot);
-
-        if (rb != null) rb.isKinematic = rbWasKinematic;
-        if (cc != null) cc.enabled = ccWasEnabled;
-        if (agent != null) agent.enabled = agentWasEnabled;
     }
 
     private void ApplyCollectedPickupsInScene()
     {
         var pickups = FindObjectsByType<PickUpScript>(FindObjectsSortMode.None);
-        for (int i = 0; i < pickups.Length; i++)
+        foreach (var p in pickups)
         {
-            var p = pickups[i];
-            if (p == null) continue;
-
-            string id = p.PickupId;
-            if (!string.IsNullOrEmpty(id) && collectedPickupIds.Contains(id))
+            if (!string.IsNullOrEmpty(p.PickupId) &&
+                collectedPickupIds.Contains(p.PickupId))
+            {
                 p.gameObject.SetActive(false);
+            }
         }
     }
 
-    private static void DeactivateAllPlayerInputs()
+    public void MarkPickupCollected(string pickupId)
     {
-        var inputs = Object.FindObjectsByType<PlayerInput>(FindObjectsSortMode.None);
-        for (int i = 0; i < inputs.Length; i++)
-        {
-            var pi = inputs[i];
-            if (pi == null) continue;
-            pi.DeactivateInput();
-        }
+        if (!string.IsNullOrEmpty(pickupId))
+            collectedPickupIds.Add(pickupId);
     }
 
-    private static void ReactivateAllPlayerInputs()
+    public bool IsPickupCollected(string pickupId)
     {
-        var inputs = Object.FindObjectsByType<PlayerInput>(FindObjectsSortMode.None);
-        for (int i = 0; i < inputs.Length; i++)
-        {
-            var pi = inputs[i];
-            if (pi == null) continue;
-            if (!pi.isActiveAndEnabled) continue;
-            pi.ActivateInput();
-        }
+        return collectedPickupIds.Contains(pickupId);
     }
 }

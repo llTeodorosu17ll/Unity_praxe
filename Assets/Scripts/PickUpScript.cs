@@ -1,135 +1,81 @@
-using System;
 using UnityEngine;
 
-[DisallowMultipleComponent]
 public class PickUpScript : MonoBehaviour
 {
-    [Header("Identity (for Save/Load)")]
     [SerializeField] private string pickupId;
+    [SerializeField] private string playerTag = "Player";
 
-    [Header("Who can pick it up")]
-    [SerializeField] private string pickerTag = "Player";
-
-    [Header("Effects (optional)")]
-    [SerializeField] private PickupEffect effect;
-    [SerializeField] private bool disableOnPickup = true;
-
-    [Header("Audio (optional)")]
-    [SerializeField] private AudioClip pickupClip;
-    [SerializeField] private float volume = 1f;
-    [SerializeField] private bool play3D = true;
-
-    [Header("VFX (optional)")]
-    [SerializeField] private GameObject pickupVfxPrefab;
-    [SerializeField] private float vfxLifetime = 2f;
-
-    private bool picked;
+    private SaveGameManager saveManager;
+    private MonoBehaviour[] effects;
+    private AudioSource audioSource;
+    private bool collected;
 
     public string PickupId => pickupId;
 
-    // =========================
-    // Unity native methods (order)
-    // =========================
     private void Awake()
     {
-        EnsureIdRuntime();
+        saveManager = FindFirstObjectByType<SaveGameManager>();
+        audioSource = GetComponent<AudioSource>();
+        effects = GetComponents<MonoBehaviour>();
 
-        // If already collected in loaded save -> remove immediately
-        if (!string.IsNullOrEmpty(pickupId) && SaveGameManager.IsPickupCollected(pickupId))
-            gameObject.SetActive(false);
+        if (string.IsNullOrEmpty(pickupId))
+        {
+            pickupId = gameObject.scene.name + "_" + gameObject.name + "_" + transform.position.ToString();
+        }
     }
 
-    private void OnEnable()
+    private void Start()
     {
-        // Safety: if object got enabled later, remove it too
-        if (!string.IsNullOrEmpty(pickupId) && SaveGameManager.IsPickupCollected(pickupId))
+        if (saveManager != null && saveManager.IsPickupCollected(pickupId))
             gameObject.SetActive(false);
     }
 
     private void OnTriggerEnter(Collider other)
     {
-        if (picked) return;
-        if (!other.CompareTag(pickerTag)) return;
+        if (collected) return;
+        if (!other.CompareTag(playerTag)) return;
 
-        picked = true;
+        Collect();
+    }
 
-        if (effect != null)
-            effect.Apply(other.gameObject);
+    private void Collect()
+    {
+        collected = true;
 
-        if (!string.IsNullOrEmpty(pickupId))
-            SaveGameManager.MarkPickupCollected(pickupId);
-
-        if (pickupClip != null)
+        // Apply effects
+        foreach (var effect in effects)
         {
-            if (play3D)
-                AudioSource.PlayClipAtPoint(pickupClip, transform.position, volume);
-            else
-                Play2DOneShot(pickupClip, volume);
+            if (effect is ScoreAddEffect scoreEffect)
+                scoreEffect.Apply();
+
+            if (effect is AddKeyEffect keyEffect)
+                keyEffect.Apply();
         }
 
-        if (pickupVfxPrefab != null)
-        {
-            var vfx = Instantiate(pickupVfxPrefab, transform.position, transform.rotation);
-            Destroy(vfx, vfxLifetime);
-        }
+        if (saveManager != null)
+            saveManager.MarkPickupCollected(pickupId);
 
-        if (disableOnPickup) gameObject.SetActive(false);
-        else Destroy(gameObject);
+        PlaySoundDetached();
+
+        gameObject.SetActive(false);
     }
 
-    // =========================
-    // Internal helpers
-    // =========================
-    private void EnsureIdRuntime()
+    private void PlaySoundDetached()
     {
-        // In builds, we must never generate IDs based on hierarchy/path.
-        // We only generate GUID if missing.
-        if (string.IsNullOrEmpty(pickupId))
-            pickupId = NewGuid();
-    }
-
-    private static string NewGuid()
-    {
-        // Compact but safe
-        return Guid.NewGuid().ToString("N");
-    }
-
-    private static void Play2DOneShot(AudioClip clip, float volume)
-    {
-        var go = new GameObject("Pickup2DAudio");
-        var src = go.AddComponent<AudioSource>();
-        src.spatialBlend = 0f;
-        src.PlayOneShot(clip, volume);
-        Destroy(go, clip.length + 0.1f);
-    }
-
-#if UNITY_EDITOR
-    // Runs in Editor when you duplicate objects too.
-    private void OnValidate()
-    {
-        // Ensure we have an ID
-        if (string.IsNullOrEmpty(pickupId))
-        {
-            pickupId = NewGuid();
+        if (audioSource == null || audioSource.clip == null)
             return;
-        }
 
-        // IMPORTANT: Unity duplicates serialized fields when you duplicate GameObjects.
-        // So we must detect duplicates and regenerate.
-        var all = FindObjectsByType<PickUpScript>(FindObjectsSortMode.None);
+        // Create temporary audio object
+        GameObject temp = new GameObject("PickupSound");
+        temp.transform.position = transform.position;
 
-        int sameCount = 0;
-        for (int i = 0; i < all.Length; i++)
-        {
-            if (all[i] == null) continue;
-            if (all[i].pickupId == pickupId) sameCount++;
-            if (sameCount > 1) break;
-        }
+        AudioSource tempSource = temp.AddComponent<AudioSource>();
+        tempSource.clip = audioSource.clip;
+        tempSource.volume = audioSource.volume;
+        tempSource.spatialBlend = audioSource.spatialBlend;
 
-        if (sameCount > 1)
-        {
-            pickupId = NewGuid();
-        }
+        tempSource.Play();
+
+        Destroy(temp, tempSource.clip.length);
     }
-#endif
 }

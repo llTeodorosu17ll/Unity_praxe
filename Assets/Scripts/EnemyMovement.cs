@@ -11,30 +11,22 @@ public class EnemyMovement : MonoBehaviour
     [SerializeField] private Transform[] waypoints;
 
     [Header("Patrol / Chase Speeds")]
-    [SerializeField] private float patrolSpeed = 2.0f;   // walk
-    [SerializeField] private float chaseSpeed = 4.5f;    // run
+    [SerializeField] private float patrolSpeed = 2.0f;
+    [SerializeField] private float chaseSpeed = 4.5f;
 
     [Header("Distances")]
-    [Tooltip("Fallback start-chase distance if EnemyVision is missing.")]
-    [SerializeField] private float reachDistance = 6f;       // start chasing (fallback)
-    [SerializeField] private float loseDistance = 12f;       // stop chasing
-    [SerializeField] private float arriveDistance = 0.6f;    // waypoint arrival
+    [SerializeField] private float reachDistance = 6f;
+    [SerializeField] private float loseDistance = 12f;
+    [SerializeField] private float arriveDistance = 0.6f;
 
     [Header("Return To Start")]
     [SerializeField] private bool returnToStart = true;
     [SerializeField] private float returnArriveDistance = 0.8f;
 
-    [Header("Idle 'Thinking' at Waypoints")]
-    [Tooltip("Enemy will stop (Idle) before choosing next destination.")]
+    [Header("Idle Thinking")]
     [SerializeField] private bool enableThinkIdle = true;
-
-    [Tooltip("Idle at the very beginning before first move.")]
     [SerializeField] private float startThinkSeconds = 0.5f;
-
-    [Tooltip("Min idle time at waypoint.")]
     [SerializeField] private float thinkSecondsMin = 0.6f;
-
-    [Tooltip("Max idle time at waypoint.")]
     [SerializeField] private float thinkSecondsMax = 1.4f;
 
     [Header("Game Over")]
@@ -44,21 +36,27 @@ public class EnemyMovement : MonoBehaviour
     [Header("Animation")]
     [SerializeField] private Animator animator;
     [SerializeField] private string speedParam = "Speed";
-    [SerializeField] private float chaseAnimMinSpeed = 3.2f; // forces run anim even near player
+    [SerializeField] private float chaseAnimMinSpeed = 3.2f;
 
-    [Header("Vision (FOV + walls)")]
-    [SerializeField] private EnemyVision vision; // if present: used for FOV + wall blocking
+    [Header("Vision")]
+    [SerializeField] private EnemyVision vision;
+
+    [Header("Detection Audio")]
+    [SerializeField] private AudioSource audioSource;
+    [SerializeField] private AudioClip detectionClip;
+
+    private EnemyVisionVolumeCone visionCone;
 
     private int waypointIndex = -1;
     private bool chasing;
     private bool returning;
     private Vector3 startPos;
 
-    // Thinking/idle state
     private bool isThinking;
     private float thinkTimer;
 
-    // --- Save/Load API used by SaveGameManager ---
+    private bool wasChasingLastFrame;
+
     public bool IsChasingPlayer => chasing;
     public bool IsReturning => returning;
     public int CurrentWaypointIndex => waypointIndex;
@@ -68,7 +66,6 @@ public class EnemyMovement : MonoBehaviour
         chasing = chasingPlayer;
         returning = isReturning;
 
-        // Thinking state is not persisted; we reset it safely.
         isThinking = false;
         thinkTimer = 0f;
 
@@ -78,41 +75,24 @@ public class EnemyMovement : MonoBehaviour
             waypointIndex = -1;
 
         if (agent == null) agent = GetComponent<NavMeshAgent>();
-        if (animator == null) animator = GetComponentInChildren<Animator>();
         if (vision == null) vision = GetComponent<EnemyVision>();
 
         if (agent == null || !agent.isOnNavMesh) return;
 
         agent.isStopped = false;
-        enabled = true;
-
         agent.speed = chasing ? chaseSpeed : patrolSpeed;
 
         if (chasing && player != null)
-        {
             agent.SetDestination(player.position);
-        }
         else if (returning)
-        {
             agent.SetDestination(startPos);
-        }
-        else if (waypoints != null && waypoints.Length > 0 && waypointIndex >= 0 && waypoints[waypointIndex] != null)
-        {
-            agent.SetDestination(waypoints[waypointIndex].position);
-        }
         else
-        {
             PickNextWaypoint();
-        }
 
         UpdateAnimator();
     }
 
-    // --- Called by EnemyKillTrigger.cs ---
-    public void OnPlayerCaught()
-    {
-        HandleGameOver();
-    }
+    public void OnPlayerCaught() => HandleGameOver();
 
     public void OnPlayerCaught(Collider other)
     {
@@ -131,26 +111,25 @@ public class EnemyMovement : MonoBehaviour
         if (agent == null) agent = GetComponent<NavMeshAgent>();
         if (animator == null) animator = GetComponentInChildren<Animator>();
         if (vision == null) vision = GetComponent<EnemyVision>();
+        if (audioSource == null) audioSource = GetComponent<AudioSource>();
+
+        visionCone = GetComponentInChildren<EnemyVisionVolumeCone>(true);
 
         startPos = transform.position;
     }
 
     private void Start()
     {
-        startPos = transform.position;
-
         if (agent != null)
             agent.speed = patrolSpeed;
 
-        // Start with thinking idle (optional)
+        if (visionCone != null)
+            visionCone.SetVisible(false);
+
         if (enableThinkIdle && startThinkSeconds > 0f)
-        {
             BeginThinking(startThinkSeconds);
-        }
         else
-        {
             PickNextWaypoint();
-        }
 
         UpdateAnimator();
     }
@@ -160,7 +139,6 @@ public class EnemyMovement : MonoBehaviour
         if (agent == null || !agent.isOnNavMesh)
             return;
 
-        // If thinking: stay idle, then continue patrol
         if (isThinking)
         {
             TickThinking();
@@ -168,28 +146,20 @@ public class EnemyMovement : MonoBehaviour
             return;
         }
 
-        // --- Vision-based chase start (FOV + walls) ---
         bool seesPlayer = false;
 
         if (player != null)
         {
             if (vision != null)
-            {
                 seesPlayer = vision.CanSeeTarget(player);
-            }
             else
-            {
-                float dFallback = Vector3.Distance(transform.position, player.position);
-                seesPlayer = dFallback <= reachDistance;
-            }
+                seesPlayer = Vector3.Distance(transform.position, player.position) <= reachDistance;
         }
 
         if (!chasing && seesPlayer)
         {
             chasing = true;
             returning = false;
-
-            // if we were about to think, cancel it
             isThinking = false;
             thinkTimer = 0f;
         }
@@ -202,11 +172,21 @@ public class EnemyMovement : MonoBehaviour
                 chasing = false;
                 if (returnToStart) returning = true;
 
-                // after losing player, optional small "thinking" before moving (looks natural)
                 if (enableThinkIdle)
                     BeginThinking(RandomThinkTime());
             }
         }
+
+        if (chasing && !wasChasingLastFrame)
+        {
+            if (audioSource != null && detectionClip != null)
+                audioSource.PlayOneShot(detectionClip);
+        }
+
+        if (visionCone != null)
+            visionCone.SetVisible(!chasing);
+
+        wasChasingLastFrame = chasing;
 
         agent.speed = chasing ? chaseSpeed : patrolSpeed;
 
@@ -241,54 +221,12 @@ public class EnemyMovement : MonoBehaviour
         UpdateAnimator();
     }
 
-    private void Patrol()
-    {
-        if (waypoints == null || waypoints.Length == 0) return;
-
-        if (waypointIndex < 0 || waypointIndex >= waypoints.Length || waypoints[waypointIndex] == null)
-        {
-            PickNextWaypoint();
-            return;
-        }
-
-        agent.isStopped = false;
-
-        // Arrived -> think idle -> then choose next waypoint
-        if (!agent.pathPending && agent.remainingDistance <= arriveDistance)
-        {
-            if (enableThinkIdle)
-                BeginThinking(RandomThinkTime());
-            else
-                PickNextWaypoint();
-
-            return;
-        }
-
-        if (waypoints[waypointIndex] != null)
-            agent.SetDestination(waypoints[waypointIndex].position);
-    }
-
-    private void PickNextWaypoint()
-    {
-        if (waypoints == null || waypoints.Length == 0) return;
-
-        for (int i = 0; i < waypoints.Length; i++)
-        {
-            waypointIndex = (waypointIndex + 1) % waypoints.Length;
-            if (waypoints[waypointIndex] == null) continue;
-
-            agent.isStopped = false;
-            agent.SetDestination(waypoints[waypointIndex].position);
-            return;
-        }
-    }
-
     private void BeginThinking(float seconds)
     {
         isThinking = true;
-        thinkTimer = Mathf.Max(0f, seconds);
+        thinkTimer = seconds;
 
-        if (agent != null)
+        if (agent != null && agent.isOnNavMesh)
         {
             agent.isStopped = true;
             agent.ResetPath();
@@ -298,42 +236,63 @@ public class EnemyMovement : MonoBehaviour
     private void TickThinking()
     {
         thinkTimer -= Time.deltaTime;
-        if (thinkTimer > 0f) return;
 
-        isThinking = false;
-        thinkTimer = 0f;
+        if (thinkTimer <= 0f)
+        {
+            isThinking = false;
 
-        // Continue patrol after thinking
-        PickNextWaypoint();
+            if (agent != null && agent.isOnNavMesh)
+                agent.isStopped = false;
+
+            PickNextWaypoint();
+        }
     }
 
     private float RandomThinkTime()
     {
-        float min = Mathf.Max(0f, thinkSecondsMin);
-        float max = Mathf.Max(min, thinkSecondsMax);
-        return Random.Range(min, max);
+        return Random.Range(thinkSecondsMin, thinkSecondsMax);
+    }
+
+    private void Patrol()
+    {
+        if (waypoints == null || waypoints.Length == 0) return;
+
+        if (!agent.pathPending && agent.remainingDistance <= arriveDistance)
+        {
+            if (enableThinkIdle)
+                BeginThinking(RandomThinkTime());
+            else
+                PickNextWaypoint();
+        }
+    }
+
+    private void PickNextWaypoint()
+    {
+        if (waypoints == null || waypoints.Length == 0) return;
+
+        waypointIndex = (waypointIndex + 1) % waypoints.Length;
+        agent.SetDestination(waypoints[waypointIndex].position);
     }
 
     private void UpdateAnimator()
     {
         if (animator == null || agent == null) return;
 
-        // If thinking (idle), speed should be 0
-        float v = 0f;
+        float speed = isThinking ? 0f : agent.velocity.magnitude;
 
-        if (!isThinking)
-        {
-            v = agent.velocity.magnitude;
-            if (chasing) v = Mathf.Max(v, chaseAnimMinSpeed);
-        }
+        if (chasing)
+            speed = Mathf.Max(speed, chaseAnimMinSpeed);
 
-        animator.SetFloat(speedParam, v);
+        animator.SetFloat(speedParam, speed);
     }
 
     private void HandleGameOver(GameObject playerObj = null)
     {
-        if (playerMovementScript != null) playerMovementScript.enabled = false;
-        if (gameOverUI != null) gameOverUI.SetActive(true);
+        if (playerMovementScript != null)
+            playerMovementScript.enabled = false;
+
+        if (gameOverUI != null)
+            gameOverUI.SetActive(true);
 
         enabled = false;
 
@@ -342,7 +301,5 @@ public class EnemyMovement : MonoBehaviour
             agent.isStopped = true;
             agent.ResetPath();
         }
-
-        UpdateAnimator();
     }
 }

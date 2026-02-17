@@ -12,6 +12,7 @@ GameObject:
   - component: {fileID: 343319567934423331}
   - component: {fileID: 5702025300757041248}
   - component: {fileID: 9081960418581653786}
+  - component: {fileID: 1055060515188814347}
   - component: {fileID: 794722294730018664}
   - component: {fileID: 5031892829311448572}
   m_Layer: 0
@@ -115,6 +116,20 @@ CapsuleCollider:
   m_Height: 2
   m_Direction: 1
   m_Center: {x: 0.000000059604645, y: 0, z: -0.00000008940697}
+--- !u!114 &1055060515188814347
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 568486596998252254}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 29e606589f0b8d641a4f93d4b7685a6e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ScoreAddEffect
+  amount: 10
+  scoreManager: {fileID: 0}
 --- !u!114 &794722294730018664
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -127,14 +142,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: abcec69babdb85247972c22f2ba62e41, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CoinPickup
-  pickerTag: Player
-  effect: {fileID: 11400000, guid: bb4231c06e568574c9c93df910756e20, type: 2}
-  destroyOnPickup: 1
-  pickupClip: {fileID: 8300000, guid: 6032b1098d3ffc54bbae523faec52069, type: 3}
-  volume: 1
-  play3D: 1
-  pickupVfxPrefab: {fileID: 0}
-  vfxLifetime: 2
+  pickupId: 
+  playerTag: Player
+  pickupSound: {fileID: 0}
 --- !u!82 &5031892829311448572
 AudioSource:
   m_ObjectHideFlags: 0
@@ -146,7 +156,7 @@ AudioSource:
   serializedVersion: 4
   OutputAudioMixerGroup: {fileID: 0}
   m_audioClip: {fileID: 0}
-  m_Resource: {fileID: 0}
+  m_Resource: {fileID: 8300000, guid: 6032b1098d3ffc54bbae523faec52069, type: 3}
   m_PlayOnAwake: 0
   m_Volume: 1
   m_Pitch: 1

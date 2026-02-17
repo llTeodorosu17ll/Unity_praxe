@@ -1,47 +1,38 @@
-// ScoreManager.cs
 using UnityEngine;
 using TMPro;
 
 public class ScoreManager : MonoBehaviour
 {
-    public static ScoreManager Instance { get; private set; }
-
     [SerializeField] private TMP_Text scoreText;
-    [SerializeField] private string prefix = "Score = ";
 
-    private int score;
-    public int Score => score;
-
-    private void Awake()
-    {
-        if (Instance != null && Instance != this)
-        {
-            Destroy(gameObject);
-            return;
-        }
-        Instance = this;
-    }
+    public int Score { get; private set; }
 
     private void Start()
     {
-        RefreshUI();
+        UpdateUI();
     }
 
-    public void Add(int amount)
+    public void AddScore(int amount)
     {
-        score += amount;
-        RefreshUI();
+        Score += amount;
+        UpdateUI();
     }
 
     public void SetScore(int value)
     {
-        score = Mathf.Max(0, value);
-        RefreshUI();
+        Score = value;
+        UpdateUI();
     }
 
-    private void RefreshUI()
+    public void ResetScore()
+    {
+        Score = 0;
+        UpdateUI();
+    }
+
+    private void UpdateUI()
     {
         if (scoreText != null)
-            scoreText.text = prefix + score;
+            scoreText.text = "Score count = " + Score.ToString();
     }
 }

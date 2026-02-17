@@ -1,53 +1,48 @@
-// KeyManager.cs
 using UnityEngine;
 using TMPro;
 
 public class KeyManager : MonoBehaviour
 {
-    public static KeyManager Instance { get; private set; }
+    [SerializeField] private TMP_Text keyText;
 
-    [SerializeField] private TMP_Text keysText;
-    [SerializeField] private string prefix = "Keys = ";
-
-    private int m_keys;
-    public int Keys => m_keys;
-
-    private void Awake()
-    {
-        if (Instance != null && Instance != this)
-        {
-            Destroy(gameObject);
-            return;
-        }
-        Instance = this;
-    }
+    public int Keys { get; private set; }
 
     private void Start()
     {
-        RefreshUI();
+        UpdateUI();
     }
 
-    public void Add(int amount)
+    public void AddKey()
     {
-        SetKeys(m_keys + amount);
-    }
-
-    public bool TrySpend(int amount)
-    {
-        if (m_keys < amount) return false;
-        SetKeys(m_keys - amount);
-        return true;
+        Keys++;
+        UpdateUI();
     }
 
     public void SetKeys(int value)
     {
-        m_keys = Mathf.Max(0, value);
-        RefreshUI();
+        Keys = value;
+        UpdateUI();
     }
 
-    private void RefreshUI()
+    public bool TrySpend(int amount = 1)
     {
-        if (keysText != null)
-            keysText.text = prefix + m_keys;
+        if (Keys < amount)
+            return false;
+
+        Keys -= amount;
+        UpdateUI();
+        return true;
+    }
+
+    public void ResetKeys()
+    {
+        Keys = 0;
+        UpdateUI();
+    }
+
+    private void UpdateUI()
+    {
+        if (keyText != null)
+            keyText.text = "Keys count = " + Keys.ToString();
     }
 }

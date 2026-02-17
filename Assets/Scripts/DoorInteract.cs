@@ -1,4 +1,3 @@
-// DoorInteract.cs
 using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.InputSystem;
@@ -8,6 +7,9 @@ public class DoorInteract : MonoBehaviour
     [Header("Interact")]
     [SerializeField] private string playerTag = "Player";
     [SerializeField] private int keysCost = 1;
+
+    [Header("References")]
+    [SerializeField] private KeyManager keyManager;
 
     [Header("Navigation")]
     [SerializeField] private NavMeshObstacle navObstacle;
@@ -58,11 +60,11 @@ public class DoorInteract : MonoBehaviour
         if (navObstacle == null)
             navObstacle = GetComponent<NavMeshObstacle>();
 
-        // Apply initial open/close to obstacle
         if (navObstacle != null)
             navObstacle.enabled = !isOpen;
 
-        if (debugLogs) Debug.Log($"DoorInteract Awake: {name} (unlocked={unlocked}, open={isOpen})", this);
+        if (debugLogs)
+            Debug.Log($"DoorInteract Awake: {name} (unlocked={unlocked}, open={isOpen})", this);
     }
 
     private void Update()
@@ -82,20 +84,23 @@ public class DoorInteract : MonoBehaviour
                 return;
             }
 
-            // Locked: need keys
-            if (KeyManager.Instance != null && KeyManager.Instance.TrySpend(keysCost))
+            if (keyManager == null)
+            {
+                Debug.LogError("DoorInteract: KeyManager reference not assigned.", this);
+                return;
+            }
+
+            if (keyManager.TrySpend(keysCost))
             {
                 unlocked = true;
                 OpenDoor();
                 return;
             }
 
-            // still locked
             RefreshHint();
         }
         else
         {
-            // CLOSE
             CloseDoor();
         }
     }
@@ -125,11 +130,12 @@ public class DoorInteract : MonoBehaviour
         unlocked = unlockedValue;
 
         if (openValue)
-            OpenDoor(playAnimation: true);
+            OpenDoor(true);
         else
-            CloseDoor(playAnimation: true);
+            CloseDoor(true);
 
-        if (debugLogs) Debug.Log($"Door '{name}' ApplySavedState: unlocked={unlocked}, open={isOpen}", this);
+        if (debugLogs)
+            Debug.Log($"Door '{name}' ApplySavedState: unlocked={unlocked}, open={isOpen}", this);
     }
 
     // ---------- Internal logic ----------
@@ -182,7 +188,7 @@ public class DoorInteract : MonoBehaviour
             return;
         }
 
-        bool hasKey = KeyManager.Instance != null && KeyManager.Instance.Keys >= keysCost;
+        bool hasKey = keyManager != null && keyManager.Keys >= keysCost;
         uiHint.Show(hasKey ? msgOpenUsesKey : msgNeedKey);
     }
 

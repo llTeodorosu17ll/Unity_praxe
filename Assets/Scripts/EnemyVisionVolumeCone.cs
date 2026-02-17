@@ -15,7 +15,6 @@ public class EnemyVisionVolumeCone : MonoBehaviour
     [SerializeField] private float yOffset = 0.02f;
 
     [Header("Raycast clipping")]
-    [Tooltip("Small offset forward so raycasts don't hit the enemy itself.")]
     [SerializeField] private float rayStartForwardOffset = 0.15f;
 
     [Header("Beam look")]
@@ -32,9 +31,6 @@ public class EnemyVisionVolumeCone : MonoBehaviour
     private Mesh coneMesh;
     private Material runtimeMat;
 
-    // =========================
-    // Unity native methods (order)
-    // =========================
     private void Awake()
     {
         if (vision == null) vision = GetComponent<EnemyVision>();
@@ -42,6 +38,9 @@ public class EnemyVisionVolumeCone : MonoBehaviour
         CreateConeObjectIfNeeded();
         RebuildMesh();
         ApplyMaterialParams();
+
+        // Start invisible
+        SetVisible(false);
     }
 
     private void LateUpdate()
@@ -60,15 +59,18 @@ public class EnemyVisionVolumeCone : MonoBehaviour
         ApplyMaterialParams();
     }
 
+    public void SetVisible(bool visible)
+    {
+        if (mr != null)
+            mr.enabled = visible;
+    }
+
     private void OnDestroy()
     {
         if (coneMesh != null) Destroy(coneMesh);
         if (runtimeMat != null) Destroy(runtimeMat);
     }
 
-    // =========================
-    // Internal helpers
-    // =========================
     private void CreateConeObjectIfNeeded()
     {
         if (coneObj != null) return;
@@ -92,10 +94,7 @@ public class EnemyVisionVolumeCone : MonoBehaviour
     {
         Shader s = Shader.Find("Custom/VolumetricFlashlightCone_NoDepthURP");
         if (s == null)
-        {
-            Debug.LogError("Shader not found: Custom/VolumetricFlashlightCone_NoDepthURP (check file name & compile errors).");
             s = Shader.Find("Universal Render Pipeline/Unlit");
-        }
 
         Material mat = new Material(s);
         mat.name = "M_VisionBeam_NoDepth_Runtime";

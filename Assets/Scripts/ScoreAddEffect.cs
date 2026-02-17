@@ -1,13 +1,13 @@
 using UnityEngine;
 
-[CreateAssetMenu(menuName = "Pickups/Effects/Add Score")]
-public class ScoreAddEffect : PickupEffect
+public class ScoreAddEffect : MonoBehaviour
 {
     [SerializeField] private int amount = 1;
+    [SerializeField] private ScoreManager scoreManager;
 
-    public override void Apply(GameObject picker)
+    public void Apply()
     {
-        if (ScoreManager.Instance != null)
-            ScoreManager.Instance.Add(amount);
+        if (scoreManager != null)
+            scoreManager.AddScore(amount);
     }
 }
