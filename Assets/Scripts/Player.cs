@@ -4,11 +4,15 @@ using UnityEngine.InputSystem;
 public class Player : MonoBehaviour
 {
     [SerializeField] private PlayerMovement movement;
+    [SerializeField] private FlashlightSystem flashlightSystem;
 
     private void Awake()
     {
         if (movement == null)
             movement = GetComponent<PlayerMovement>();
+
+        if (flashlightSystem == null)
+            flashlightSystem = GetComponentInChildren<FlashlightSystem>();
     }
 
     public void OnMove(InputValue value)
@@ -27,7 +31,6 @@ public class Player : MonoBehaviour
     {
         if (movement == null) return;
 
-        // Button action: true on press
         if (value.isPressed)
             movement.JumpRequested = true;
     }
@@ -45,5 +48,15 @@ public class Player : MonoBehaviour
         movement.CrouchHeld = value.isPressed;
         if (value.isPressed)
             movement.CrouchPressedThisFrame = true;
+    }
+
+    public void OnFlashlight(InputValue value)
+    {
+        Debug.Log("Flashlight input triggered");
+
+        if (flashlightSystem == null) return;
+
+        if (value.isPressed)
+            flashlightSystem.Toggle();
     }
 }

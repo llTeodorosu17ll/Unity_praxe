@@ -15,8 +15,6 @@ public class PlayerMovement : MonoBehaviour
     [Header("CharacterController")]
     [SerializeField] private float standHeight = 1.8f;
     [SerializeField] private float crouchHeight = 1.1f;
-
-    [Tooltip("Applied ONLY while crouching: centerY = height/2 + offset")]
     [SerializeField] private float crouchCenterYOffset = 0f;
 
     [Header("Look")]
@@ -39,6 +37,9 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private float runSpeedForAnim = 6f;
     [SerializeField] private float animSmooth = 12f;
 
+    [Header("Stamina")]
+    [SerializeField] private StaminaSystem staminaSystem;
+
     private CharacterController controller;
 
     private float verticalSpeed;
@@ -48,16 +49,13 @@ public class PlayerMovement : MonoBehaviour
     private bool isCrouching;
     private float animSpeed;
 
-    // store the original center set in Inspector (standing)
     private Vector3 standCenter;
 
-    // Input from Player.cs
     public Vector2 MoveInput { get; set; }
     public Vector2 LookInput { get; set; }
     public bool JumpRequested { get; set; }
     public bool SprintHeld { get; set; }
 
-    // Crouch input from Player.cs (Input System)
     public bool CrouchHeld { get; set; }
     public bool CrouchPressedThisFrame { get; set; }
 
@@ -67,8 +65,6 @@ public class PlayerMovement : MonoBehaviour
     private void Awake()
     {
         controller = GetComponent<CharacterController>();
-
-        // remember standing center (whatever you set in Inspector)
         standCenter = controller.center;
 
         if (cameraTarget == null)
@@ -90,7 +86,6 @@ public class PlayerMovement : MonoBehaviour
             pitch = x;
         }
 
-        // standing shape: only height changes, center stays what you set
         ApplyControllerShapeStanding();
     }
 
@@ -109,7 +104,6 @@ public class PlayerMovement : MonoBehaviour
 
         CrouchPressedThisFrame = false;
     }
-
 
     private void HandleLook()
     {
@@ -148,14 +142,12 @@ public class PlayerMovement : MonoBehaviour
         }
     }
 
-    // Standing: height = standHeight, center stays EXACTLY what you set in Inspector
     private void ApplyControllerShapeStanding()
     {
         controller.height = Mathf.Max(0.5f, standHeight);
         controller.center = standCenter;
     }
 
-    // Crouching: height = crouchHeight AND center.y is forced to height/2 (only here)
     private void ApplyControllerShapeCrouching()
     {
         controller.height = Mathf.Max(0.5f, crouchHeight);
@@ -167,8 +159,6 @@ public class PlayerMovement : MonoBehaviour
 
     private void HandleMoveAndJump()
     {
-        if (controller == null || !controller.enabled)
-            return;
         bool grounded = controller.isGrounded;
 
         if (grounded && verticalSpeed < 0f)
@@ -179,9 +169,17 @@ public class PlayerMovement : MonoBehaviour
 
         Vector3 moveDir = transform.right * input.x + transform.forward * input.z;
 
-        bool sprintAllowed = SprintHeld && !isCrouching;
+        bool sprintAllowed =
+            SprintHeld &&
+            !isCrouching &&
+            staminaSystem != null &&
+            staminaSystem.CanSprint;
+
         float speed = moveSpeed * (sprintAllowed ? sprintMultiplier : 1f);
         speed *= (isCrouching ? crouchSpeedMultiplier : 1f);
+
+        if (staminaSystem != null)
+            staminaSystem.UpdateStamina(sprintAllowed);
 
         bool canJump = grounded && (!blockJumpWhileCrouched || !isCrouching);
 

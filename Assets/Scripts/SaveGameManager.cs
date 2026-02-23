@@ -29,6 +29,7 @@ public class DoorState
 public class SaveData
 {
     public string sceneName;
+
     public Vector3 playerPos;
     public Quaternion playerRot;
 
@@ -47,7 +48,6 @@ public class SaveGameManager : MonoBehaviour
 {
     public static SaveGameManager Instance { get; private set; }
 
-    [Header("References")]
     [SerializeField] private ScoreManager scoreManager;
     [SerializeField] private KeyManager keyManager;
 
@@ -56,6 +56,7 @@ public class SaveGameManager : MonoBehaviour
 
     private SaveData pending;
     private readonly HashSet<string> collectedPickupIds = new();
+
     private bool isLoading;
 
     private void Awake()
@@ -77,7 +78,9 @@ public class SaveGameManager : MonoBehaviour
         SceneManager.sceneLoaded -= OnSceneLoaded;
     }
 
-    // ================= SAVE =================
+    // =========================================================
+    // SAVE
+    // =========================================================
 
     public void Save()
     {
@@ -135,7 +138,9 @@ public class SaveGameManager : MonoBehaviour
         Debug.Log("Game saved.");
     }
 
-    // ================= LOAD =================
+    // =========================================================
+    // LOAD
+    // =========================================================
 
     public void Load()
     {
@@ -162,7 +167,11 @@ public class SaveGameManager : MonoBehaviour
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
+        // 🔥 CRITICAL: ALWAYS REBIND BUTTONS
+        RebindUIButtons();
+
         if (!isLoading || pending == null) return;
+
         StartCoroutine(ApplyAfterSpawn());
     }
 
@@ -216,6 +225,31 @@ public class SaveGameManager : MonoBehaviour
 
         Debug.Log("Load complete.");
     }
+
+    // =========================================================
+    // FIX BUTTON MISSING OBJECT AFTER SCENE LOAD
+    // =========================================================
+
+    private void RebindUIButtons()
+    {
+        var buttons = FindObjectsByType<Button>(FindObjectsSortMode.None);
+
+        foreach (var btn in buttons)
+        {
+            if (btn.name == "Save")
+            {
+                btn.onClick.RemoveAllListeners();
+                btn.onClick.AddListener(Save);
+            }
+            else if (btn.name == "Load")
+            {
+                btn.onClick.RemoveAllListeners();
+                btn.onClick.AddListener(Load);
+            }
+        }
+    }
+
+    // =========================================================
 
     private void RestoreEnemies()
     {
