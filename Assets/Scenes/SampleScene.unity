@@ -6758,13 +6758,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 67e8eae67f92bdb4fb7feba525befcf7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FootstepAudio
-  footstepClips: []
+  externalAudioSource: {fileID: 1512452519}
   volume: 1
   minPitch: 0.95
   maxPitch: 1.05
-  characterController: {fileID: 1512452515}
-  navMeshAgent: {fileID: 0}
-  minVelocityToPlay: 0.1
 --- !u!82 &1512452519
 AudioSource:
   m_ObjectHideFlags: 0
@@ -7830,13 +7827,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 67e8eae67f92bdb4fb7feba525befcf7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FootstepAudio
-  footstepClips: []
+  externalAudioSource: {fileID: 1760314873}
   volume: 1
   minPitch: 0.95
   maxPitch: 1.05
-  characterController: {fileID: 0}
-  navMeshAgent: {fileID: 1760314866}
-  minVelocityToPlay: 0.1
 --- !u!82 &1760314873
 AudioSource:
   m_ObjectHideFlags: 0
