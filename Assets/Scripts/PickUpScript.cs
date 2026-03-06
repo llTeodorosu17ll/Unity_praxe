@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 public class PickUpScript : MonoBehaviour
 {
@@ -50,6 +50,10 @@ public class PickUpScript : MonoBehaviour
 
             if (effect is AddKeyEffect keyEffect)
                 keyEffect.Apply();
+
+            // ✅ THIS was missing
+            if (effect is BatteryPickupEffect batteryEffect)
+                batteryEffect.Apply();
         }
 
         if (saveManager != null)
@@ -65,7 +69,6 @@ public class PickUpScript : MonoBehaviour
         if (audioSource == null || audioSource.clip == null)
             return;
 
-        // Create temporary audio object
         GameObject temp = new GameObject("PickupSound");
         temp.transform.position = transform.position;
 

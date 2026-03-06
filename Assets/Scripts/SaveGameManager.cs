@@ -28,6 +28,9 @@ public class DoorState
 [System.Serializable]
 public class SaveData
 {
+    // Versioning for backward compatibility (old save files won't have stamina/battery)
+    public int saveVersion = 2;
+
     public string sceneName;
 
     public Vector3 playerPos;
@@ -38,6 +41,14 @@ public class SaveData
 
     public int score;
     public int keys;
+
+    // Random layout seed
+    public int spawnSeed;
+
+    // Player stats
+    public float stamina;
+    public float flashlightBattery;
+    public bool flashlightOn;
 
     public List<string> collectedPickups = new();
     public List<EnemyState> enemies = new();
@@ -58,6 +69,7 @@ public class SaveGameManager : MonoBehaviour
     private readonly HashSet<string> collectedPickupIds = new();
 
     private bool isLoading;
+    public bool IsLoading => isLoading; // SpawnManager reads this
 
     private void Awake()
     {
@@ -90,13 +102,19 @@ public class SaveGameManager : MonoBehaviour
         if (player == null) return;
 
         var movement = player.GetComponent<PlayerMovement>();
+        var staminaSystem = player.GetComponent<StaminaSystem>();
+        var flashlight = FindFirstObjectByType<FlashlightSystem>();
+        var spawnManager = FindFirstObjectByType<SpawnManager>();
 
         scoreManager = FindFirstObjectByType<ScoreManager>();
         keyManager = FindFirstObjectByType<KeyManager>();
 
         SaveData data = new SaveData
         {
+            saveVersion = 2,
+
             sceneName = SceneManager.GetActiveScene().name,
+
             playerPos = player.transform.position,
             playerRot = player.transform.rotation,
 
@@ -105,6 +123,13 @@ public class SaveGameManager : MonoBehaviour
 
             score = scoreManager != null ? scoreManager.Score : 0,
             keys = keyManager != null ? keyManager.Keys : 0,
+
+            spawnSeed = spawnManager != null ? spawnManager.CurrentSeed : 0,
+
+            stamina = staminaSystem != null ? staminaSystem.CurrentStamina : 100f,
+            flashlightBattery = flashlight != null ? flashlight.CurrentBattery : 100f,
+            flashlightOn = flashlight != null && flashlight.IsOn,
+
             collectedPickups = new List<string>(collectedPickupIds)
         };
 
@@ -167,19 +192,28 @@ public class SaveGameManager : MonoBehaviour
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
-        // 🔥 CRITICAL: ALWAYS REBIND BUTTONS
         RebindUIButtons();
 
         if (!isLoading || pending == null) return;
 
-        StartCoroutine(ApplyAfterSpawn());
+        StartCoroutine(ApplyAfterSceneInit());
     }
 
-    private IEnumerator ApplyAfterSpawn()
+    private IEnumerator ApplyAfterSceneInit()
     {
+        // let scene objects run Awake/Start
         yield return null;
         yield return null;
 
+        // 1) Recreate the same random layout (items)
+        var spawnManager = FindFirstObjectByType<SpawnManager>();
+        if (spawnManager != null)
+            spawnManager.GenerateNewLayout(pending.spawnSeed);
+
+        // allow spawned pickups to exist
+        yield return null;
+
+        // 2) Restore player transform + look
         var player = GameObject.FindGameObjectWithTag("Player");
         if (player == null)
         {
@@ -188,6 +222,9 @@ public class SaveGameManager : MonoBehaviour
         }
 
         var movement = player.GetComponent<PlayerMovement>();
+        var staminaSystem = player.GetComponent<StaminaSystem>();
+        var flashlight = FindFirstObjectByType<FlashlightSystem>();
+
         var cc = player.GetComponent<CharacterController>();
         var agent = player.GetComponent<NavMeshAgent>();
 
@@ -207,6 +244,7 @@ public class SaveGameManager : MonoBehaviour
         if (cc != null) cc.enabled = ccWas;
         if (agent != null) agent.enabled = agentWas;
 
+        // 3) Restore score/keys
         scoreManager = FindFirstObjectByType<ScoreManager>();
         keyManager = FindFirstObjectByType<KeyManager>();
 
@@ -216,8 +254,21 @@ public class SaveGameManager : MonoBehaviour
         if (keyManager != null)
             keyManager.SetKeys(pending.keys);
 
+        // 4) Restore stamina + flashlight ONLY if saveVersion >= 2
+        if (pending.saveVersion >= 2)
+        {
+            if (staminaSystem != null)
+                staminaSystem.SetCurrentStamina(pending.stamina);
+
+            if (flashlight != null)
+                flashlight.SetBatteryAndState(pending.flashlightBattery, pending.flashlightOn, silent: true);
+        }
+
+        // 5) Restore enemies/doors
         RestoreEnemies();
         RestoreDoors();
+
+        // 6) Disable collected pickups (including ones spawned from seed)
         ApplyCollectedPickupsInScene();
 
         pending = null;
@@ -227,7 +278,7 @@ public class SaveGameManager : MonoBehaviour
     }
 
     // =========================================================
-    // FIX BUTTON MISSING OBJECT AFTER SCENE LOAD
+    // Rebind Save/Load buttons after scene load
     // =========================================================
 
     private void RebindUIButtons()
@@ -288,11 +339,8 @@ public class SaveGameManager : MonoBehaviour
         var pickups = FindObjectsByType<PickUpScript>(FindObjectsSortMode.None);
         foreach (var p in pickups)
         {
-            if (!string.IsNullOrEmpty(p.PickupId) &&
-                collectedPickupIds.Contains(p.PickupId))
-            {
+            if (!string.IsNullOrEmpty(p.PickupId) && collectedPickupIds.Contains(p.PickupId))
                 p.gameObject.SetActive(false);
-            }
         }
     }
 

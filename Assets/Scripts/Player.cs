@@ -35,6 +35,15 @@ public class Player : MonoBehaviour
             movement.JumpRequested = true;
     }
 
+    // Input Action must be named "CombatJump" for this to fire (PlayerInput -> Send Messages)
+    public void OnCombatJump(InputValue value)
+    {
+        if (movement == null) return;
+
+        if (value.isPressed)
+            movement.CombatJumpRequested = true;
+    }
+
     public void OnSprint(InputValue value)
     {
         if (movement == null) return;
