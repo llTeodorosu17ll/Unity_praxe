@@ -29,6 +29,10 @@ public class EnemyMovement : MonoBehaviour
     [SerializeField] private float thinkSecondsMin = 0.6f;
     [SerializeField] private float thinkSecondsMax = 1.4f;
 
+    [Header("Patrol Random")]
+    [SerializeField] private bool randomPatrol = true;
+    [SerializeField] private bool avoidImmediateRepeat = true;
+
     [Header("Game Over")]
     [SerializeField] private MonoBehaviour playerMovementScript;
     [SerializeField] private GameObject gameOverUI;
@@ -270,8 +274,38 @@ public class EnemyMovement : MonoBehaviour
     {
         if (waypoints == null || waypoints.Length == 0) return;
 
-        waypointIndex = (waypointIndex + 1) % waypoints.Length;
-        agent.SetDestination(waypoints[waypointIndex].position);
+        int nextIndex;
+
+        if (!randomPatrol)
+        {
+            nextIndex = (waypointIndex + 1) % waypoints.Length;
+        }
+        else
+        {
+            if (waypoints.Length == 1)
+            {
+                nextIndex = 0;
+            }
+            else
+            {
+                // pick random, optionally avoid repeating the same point
+                int guard = 0;
+                do
+                {
+                    nextIndex = Random.Range(0, waypoints.Length);
+                    guard++;
+                }
+                while (
+                    guard < 50 &&
+                    ((avoidImmediateRepeat && nextIndex == waypointIndex) || waypoints[nextIndex] == null)
+                );
+            }
+        }
+
+        waypointIndex = nextIndex;
+
+        if (waypoints[waypointIndex] != null)
+            agent.SetDestination(waypoints[waypointIndex].position);
     }
 
     private void UpdateAnimator()
