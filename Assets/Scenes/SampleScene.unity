@@ -2073,6 +2073,51 @@ Transform:
   - {fileID: 587647372}
   m_Father: {fileID: 1641312653}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &231130752
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 231130754}
+  - component: {fileID: 231130753}
+  m_Layer: 0
+  m_Name: RunProgressManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &231130753
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 231130752}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 272195914fcb976489ba5af28b7ed723, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::RunProgressManager
+  applyDelayFrames: 2
+--- !u!4 &231130754
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 231130752}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -12.73166, y: 3.15372, z: 1.5}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &231928516
 GameObject:
   m_ObjectHideFlags: 0
@@ -2764,7 +2809,6 @@ GameObject:
   - component: {fileID: 342207254}
   - component: {fileID: 342207258}
   - component: {fileID: 342207253}
-  - component: {fileID: 342207259}
   m_Layer: 0
   m_Name: Win Sphere
   m_TagString: Untagged
@@ -2903,19 +2947,6 @@ SphereCollider:
   serializedVersion: 3
   m_Radius: 0.65
   m_Center: {x: 0, y: 0, z: 0}
---- !u!114 &342207259
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 342207252}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 272195914fcb976489ba5af28b7ed723, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::RunProgressManager
-  applyDelayFrames: 2
 --- !u!1 &342587308
 GameObject:
   m_ObjectHideFlags: 0
@@ -62860,7 +62891,7 @@ Transform:
   m_GameObject: {fileID: 1641312652}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 2, y: 1, z: 5.0000005}
+  m_LocalPosition: {x: 2, y: 0, z: 5.0000005}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -62899,6 +62930,8 @@ MonoBehaviour:
   startThinkSeconds: 0.5
   thinkSecondsMin: 0.6
   thinkSecondsMax: 1.4
+  randomPatrol: 1
+  avoidImmediateRepeat: 1
   playerMovementScript: {fileID: 1512452514}
   gameOverUI: {fileID: 2105220322}
   animator: {fileID: 828624088}
@@ -63129,6 +63162,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyVisionVolumeCone
   vision: {fileID: 1641312655}
+  coneShader: {fileID: 4800000, guid: 99e119ebcc7bc434ea032752b24c5405, type: 3}
   segments: 64
   height: 5
   verticalPivot: 0.4
@@ -63962,6 +63996,8 @@ MonoBehaviour:
   startThinkSeconds: 0.5
   thinkSecondsMin: 0.6
   thinkSecondsMax: 1.4
+  randomPatrol: 1
+  avoidImmediateRepeat: 1
   playerMovementScript: {fileID: 1512452514}
   gameOverUI: {fileID: 2105220322}
   animator: {fileID: 2130194485}
@@ -63979,7 +64015,7 @@ Transform:
   m_GameObject: {fileID: 1760314859}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 16, y: 1, z: -25}
+  m_LocalPosition: {x: 16, y: 0, z: -25}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -64088,6 +64124,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyVisionVolumeCone
   vision: {fileID: 1760314868}
+  coneShader: {fileID: 4800000, guid: 99e119ebcc7bc434ea032752b24c5405, type: 3}
   segments: 64
   height: 5
   verticalPivot: 0.4
@@ -67899,8 +67936,9 @@ SceneRoots:
   - {fileID: 435492897}
   - {fileID: 1031750619}
   - {fileID: 1842328591}
-  - {fileID: 342207257}
   - {fileID: 1376902637}
   - {fileID: 624023261}
   - {fileID: 309761603}
   - {fileID: 742557848}
+  - {fileID: 342207257}
+  - {fileID: 231130754}

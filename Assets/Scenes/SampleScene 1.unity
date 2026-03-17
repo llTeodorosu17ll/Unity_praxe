@@ -62044,7 +62044,6 @@ GameObject:
   - component: {fileID: 1258124007}
   - component: {fileID: 1258124006}
   - component: {fileID: 1258124005}
-  - component: {fileID: 1258124004}
   m_Layer: 0
   m_Name: Win Sphere
   m_TagString: Untagged
@@ -62052,19 +62051,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1258124004
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1258124003}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 272195914fcb976489ba5af28b7ed723, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::RunProgressManager
-  applyDelayFrames: 2
 --- !u!114 &1258124005
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -66290,6 +66276,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyVisionVolumeCone
   vision: {fileID: 1641312655}
+  coneShader: {fileID: 4800000, guid: 99e119ebcc7bc434ea032752b24c5405, type: 3}
   segments: 64
   height: 5
   verticalPivot: 0.4
@@ -67149,6 +67136,51 @@ Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: bfbd9c4450deea249b06374012342aa9, type: 3}
   m_PrefabInstance: {fileID: 1707175059}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1728749407
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1728749409}
+  - component: {fileID: 1728749408}
+  m_Layer: 0
+  m_Name: RunProgressManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!114 &1728749408
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1728749407}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 272195914fcb976489ba5af28b7ed723, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::RunProgressManager
+  applyDelayFrames: 2
+--- !u!4 &1728749409
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1728749407}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -13.52381, y: 5, z: 0.92614}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1729776767
 GameObject:
   m_ObjectHideFlags: 0
@@ -67563,6 +67595,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyVisionVolumeCone
   vision: {fileID: 1760314868}
+  coneShader: {fileID: 4800000, guid: 99e119ebcc7bc434ea032752b24c5405, type: 3}
   segments: 64
   height: 5
   verticalPivot: 0.4
@@ -72366,3 +72399,4 @@ SceneRoots:
   - {fileID: 742557848}
   - {fileID: 160296996}
   - {fileID: 1258124010}
+  - {fileID: 1728749409}

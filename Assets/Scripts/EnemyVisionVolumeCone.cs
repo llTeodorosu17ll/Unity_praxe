@@ -5,6 +5,7 @@ public class EnemyVisionVolumeCone : MonoBehaviour
 {
     [Header("References")]
     [SerializeField] private EnemyVision vision;
+    [SerializeField] private Shader coneShader;
 
     [Header("Mesh quality")]
     [SerializeField, Range(16, 256)] private int segments = 64;
@@ -39,7 +40,6 @@ public class EnemyVisionVolumeCone : MonoBehaviour
         RebuildMesh();
         ApplyMaterialParams();
 
-        // Start invisible
         SetVisible(false);
     }
 
@@ -85,16 +85,36 @@ public class EnemyVisionVolumeCone : MonoBehaviour
         mf.sharedMesh = coneMesh;
 
         runtimeMat = CreateRuntimeMaterial();
-        mr.sharedMaterial = runtimeMat;
 
+        if (runtimeMat == null)
+        {
+            Debug.LogError("[EnemyVisionVolumeCone] Runtime material was not created because no valid shader was found.", this);
+            mr.enabled = false;
+            return;
+        }
+
+        mr.sharedMaterial = runtimeMat;
         mr.sortingOrder = 5000;
     }
 
     private Material CreateRuntimeMaterial()
     {
-        Shader s = Shader.Find("Custom/VolumetricFlashlightCone_NoDepthURP");
+        Shader s = coneShader;
+
+        if (s == null)
+            s = Shader.Find("Custom/VolumetricFlashlightCone_NoDepthURP");
+
         if (s == null)
             s = Shader.Find("Universal Render Pipeline/Unlit");
+
+        if (s == null)
+            s = Shader.Find("Standard");
+
+        if (s == null)
+        {
+            Debug.LogError("[EnemyVisionVolumeCone] No shader found. Assign coneShader in Inspector or include the custom shader in build.", this);
+            return null;
+        }
 
         Material mat = new Material(s);
         mat.name = "M_VisionBeam_NoDepth_Runtime";
@@ -116,7 +136,6 @@ public class EnemyVisionVolumeCone : MonoBehaviour
         if (mat.HasProperty("_EdgeSoftness")) mat.SetFloat("_EdgeSoftness", edgeSoftness);
         if (mat.HasProperty("_RadialPower")) mat.SetFloat("_RadialPower", radialPower);
         if (mat.HasProperty("_DistanceFade")) mat.SetFloat("_DistanceFade", distanceFade);
-
         if (mat.HasProperty("_ConeLength")) mat.SetFloat("_ConeLength", r);
         if (mat.HasProperty("_ConeHalfWidth")) mat.SetFloat("_ConeHalfWidth", Mathf.Max(0.001f, halfWidth));
     }
@@ -174,8 +193,6 @@ public class EnemyVisionVolumeCone : MonoBehaviour
         v[topCenter] = new Vector3(0f, yTop, 0f);
 
         Vector3 fwd = forwardWS.sqrMagnitude > 0.0001f ? forwardWS.normalized : transform.forward;
-
-        // Start rays slightly forward so we don't hit the enemy's own colliders.
         Vector3 rayOriginBase = originWS + fwd * rayStartForwardOffset;
 
         for (int i = 0; i <= seg; i++)
@@ -225,37 +242,37 @@ public class EnemyVisionVolumeCone : MonoBehaviour
         {
             int b0 = bottomArcStart + i;
             int b1 = bottomArcStart + i + 1;
-            int u0 = topArcStart + i;
-            int u1 = topArcStart + i + 1;
+            int t0v = topArcStart + i;
+            int t1v = topArcStart + i + 1;
 
-            tris[t++] = b0; tris[t++] = b1; tris[t++] = u1;
-            tris[t++] = b0; tris[t++] = u1; tris[t++] = u0;
+            tris[t++] = b0;
+            tris[t++] = t1v;
+            tris[t++] = t0v;
+
+            tris[t++] = b0;
+            tris[t++] = b1;
+            tris[t++] = t1v;
         }
 
-        {
-            int bEdge = bottomArcStart + 0;
-            int uEdge = topArcStart + 0;
+        tris[t++] = bottomCenter;
+        tris[t++] = topCenter;
+        tris[t++] = bottomArcStart;
 
-            tris[t++] = bottomCenter; tris[t++] = bEdge; tris[t++] = uEdge;
-            tris[t++] = bottomCenter; tris[t++] = uEdge; tris[t++] = topCenter;
-        }
+        tris[t++] = bottomArcStart;
+        tris[t++] = topCenter;
+        tris[t++] = topArcStart;
 
-        {
-            int bEdge = bottomArcStart + seg;
-            int uEdge = topArcStart + seg;
+        tris[t++] = bottomArcStart + seg;
+        tris[t++] = topArcStart + seg;
+        tris[t++] = topCenter;
 
-            tris[t++] = bottomCenter; tris[t++] = uEdge; tris[t++] = bEdge;
-            tris[t++] = bottomCenter; tris[t++] = topCenter; tris[t++] = uEdge;
-        }
+        tris[t++] = bottomArcStart + seg;
+        tris[t++] = topCenter;
+        tris[t++] = bottomCenter;
 
         mesh.vertices = v;
         mesh.triangles = tris;
         mesh.RecalculateNormals();
         mesh.RecalculateBounds();
-
-        // Prevent pop-in from frustum culling
-        var b = mesh.bounds;
-        b.Expand(new Vector3(50f, 50f, 50f));
-        mesh.bounds = b;
     }
 }
