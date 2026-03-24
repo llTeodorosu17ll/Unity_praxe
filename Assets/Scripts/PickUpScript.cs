@@ -1,12 +1,32 @@
-﻿using UnityEngine;
+﻿using System;
+using System.Collections.Generic;
+using UnityEngine;
 
 public class PickUpScript : MonoBehaviour
 {
+    public enum PickupRewardType
+    {
+        Score,
+        Key,
+        Battery
+    }
+
+    [Serializable]
+    public struct PickupReward
+    {
+        public PickupRewardType type;
+        public float amount;
+    }
+
+    [Header("Identity")]
     [SerializeField] private string pickupId;
+
+    [Header("Trigger")]
     [SerializeField] private string playerTag = "Player";
 
-    private SaveGameManager saveManager;
-    private MonoBehaviour[] effects;
+    [Header("Rewards")]
+    [SerializeField] private List<PickupReward> rewards = new();
+
     private AudioSource audioSource;
     private bool collected;
 
@@ -14,26 +34,25 @@ public class PickUpScript : MonoBehaviour
 
     private void Awake()
     {
-        saveManager = FindFirstObjectByType<SaveGameManager>();
         audioSource = GetComponent<AudioSource>();
-        effects = GetComponents<MonoBehaviour>();
 
-        if (string.IsNullOrEmpty(pickupId))
-        {
-            pickupId = gameObject.scene.name + "_" + gameObject.name + "_" + transform.position.ToString();
-        }
+        if (string.IsNullOrWhiteSpace(pickupId))
+            pickupId = gameObject.scene.name + "_" + gameObject.name + "_" + transform.position;
     }
 
     private void Start()
     {
-        if (saveManager != null && saveManager.IsPickupCollected(pickupId))
+        if (GameManager.HasInstance && GameManager.Instance.IsPickupCollected(pickupId))
             gameObject.SetActive(false);
     }
 
     private void OnTriggerEnter(Collider other)
     {
-        if (collected) return;
-        if (!other.CompareTag(playerTag)) return;
+        if (collected)
+            return;
+
+        if (other == null || !other.CompareTag(playerTag))
+            return;
 
         Collect();
     }
@@ -42,26 +61,40 @@ public class PickUpScript : MonoBehaviour
     {
         collected = true;
 
-        // Apply effects
-        foreach (var effect in effects)
-        {
-            if (effect is ScoreAddEffect scoreEffect)
-                scoreEffect.Apply();
+        ApplyRewards();
 
-            if (effect is AddKeyEffect keyEffect)
-                keyEffect.Apply();
-
-            // ✅ THIS was missing
-            if (effect is BatteryPickupEffect batteryEffect)
-                batteryEffect.Apply();
-        }
-
-        if (saveManager != null)
-            saveManager.MarkPickupCollected(pickupId);
+        if (GameManager.HasInstance)
+            GameManager.Instance.MarkPickupCollected(pickupId);
 
         PlaySoundDetached();
-
         gameObject.SetActive(false);
+    }
+
+    private void ApplyRewards()
+    {
+        if (!GameManager.HasInstance)
+            return;
+
+        for (int i = 0; i < rewards.Count; i++)
+        {
+            PickupReward reward = rewards[i];
+
+            switch (reward.type)
+            {
+                case PickupRewardType.Score:
+                    GameManager.Instance.AddScore(Mathf.RoundToInt(reward.amount));
+                    break;
+
+                case PickupRewardType.Key:
+                    GameManager.Instance.AddKeys(Mathf.RoundToInt(reward.amount));
+                    break;
+
+                case PickupRewardType.Battery:
+                    if (GameManager.Instance.FlashlightSystem != null)
+                        GameManager.Instance.FlashlightSystem.AddBattery(reward.amount);
+                    break;
+            }
+        }
     }
 
     private void PlaySoundDetached()
@@ -76,9 +109,9 @@ public class PickUpScript : MonoBehaviour
         tempSource.clip = audioSource.clip;
         tempSource.volume = audioSource.volume;
         tempSource.spatialBlend = audioSource.spatialBlend;
+        tempSource.outputAudioMixerGroup = audioSource.outputAudioMixerGroup;
 
         tempSource.Play();
-
         Destroy(temp, tempSource.clip.length);
     }
 }

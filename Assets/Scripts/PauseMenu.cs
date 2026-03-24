@@ -1,20 +1,18 @@
 using System.Collections;
 using UnityEngine;
-using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 public class PauseMenu : MonoBehaviour
 {
-    [Header("Panels (keep them ACTIVE in hierarchy)")]
-    [SerializeField] private GameObject pausePanel;
-    [SerializeField] private GameObject optionsPanel;
+    [Header("Panels (must already have CanvasGroup)")]
+    [SerializeField] private CanvasGroup pauseGroup;
+    [SerializeField] private CanvasGroup optionsGroup;
 
     [Header("Gameplay scripts to disable on pause")]
-    [Tooltip("Drag your PlayerMovement + CameraLook scripts here.")]
     [SerializeField] private MonoBehaviour[] disableOnPause;
 
-    [Header("Input System (optional)")]
+    [Header("Input System")]
     [SerializeField] private PlayerInput playerInput;
     [SerializeField] private string uiActionMapName = "UI";
     [SerializeField] private string gameplayActionMapName = "Player";
@@ -24,60 +22,45 @@ public class PauseMenu : MonoBehaviour
     [SerializeField] private Slider volumeSlider;
 
     [Header("Debug")]
-    [SerializeField] private bool debugPauseSpike = true;
-    [Tooltip("TEMP test: skip playing pause music to see if audio causes the freeze.")]
+    [SerializeField] private bool debugPauseSpike = false;
     [SerializeField] private bool skipPauseMusic = true;
 
     public static bool IsPaused { get; private set; }
 
     private const string VolumeKey = "volume";
 
-    private CanvasGroup pauseGroup;
-    private CanvasGroup optionsGroup;
-
     private string previousActionMap;
     private InputActionMap uiMap;
     private InputActionMap gameplayMap;
-
-    private EventSystem eventSystem;
     private bool isWarmupRunning;
 
-    // =========================
-    // Unity native methods (order)
-    // =========================
     private void Awake()
     {
         IsPaused = false;
         Time.timeScale = 1f;
 
-        if (playerInput == null)
-            playerInput = FindFirstObjectByType<PlayerInput>();
-
-        eventSystem = FindFirstObjectByType<EventSystem>();
-
-        pauseGroup = EnsureCanvasGroup(pausePanel);
-        optionsGroup = EnsureCanvasGroup(optionsPanel);
+        ValidateRefs();
 
         HideGroup(pauseGroup);
         HideGroup(optionsGroup);
 
         CacheActionMaps();
 
-        float v = PlayerPrefs.GetFloat(VolumeKey, 1f);
-        ApplyVolume(v);
+        float volume = PlayerPrefs.GetFloat(VolumeKey, 1f);
+        ApplyVolume(volume);
 
         if (volumeSlider != null)
         {
             volumeSlider.minValue = 0f;
             volumeSlider.maxValue = 1f;
-            volumeSlider.value = v;
-            volumeSlider.onValueChanged.AddListener(OnVolumeChanged);
+            volumeSlider.value = volume;
+            volumeSlider.onValueChanged.AddListener(OnVolumeChanged_Event);
         }
 
         SetupMusic(menuMusicSource);
 
-        UnityEngine.Cursor.lockState = CursorLockMode.Locked;
-        UnityEngine.Cursor.visible = false;
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
 
         Canvas.ForceUpdateCanvases();
 
@@ -87,73 +70,85 @@ public class PauseMenu : MonoBehaviour
 
     private void Start()
     {
-        StartCoroutine(WarmupRealPauseCycle());
+        StartCoroutine(WarmupPauseCycle());
     }
 
     private void OnDestroy()
     {
         if (volumeSlider != null)
-            volumeSlider.onValueChanged.RemoveListener(OnVolumeChanged);
+            volumeSlider.onValueChanged.RemoveListener(OnVolumeChanged_Event);
     }
 
     private void Update()
     {
-        if (isWarmupRunning) return;
+        if (isWarmupRunning)
+            return;
 
         if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
         {
-            if (!IsPaused) Pause();
-            else Resume();
+            if (!IsPaused)
+                Pause_Internal();
+            else
+                Resume_Internal();
         }
     }
 
-    // =========================
-    // Public API
-    // =========================
-    public void Pause()
+    // Called by Button OnClick
+    public void Resume_Button()
+    {
+        Resume_Internal();
+    }
+
+    // Called by Button OnClick
+    public void OpenOptions_Button()
+    {
+        if (!IsPaused)
+            return;
+
+        HideGroup(pauseGroup);
+        ShowGroup(optionsGroup);
+    }
+
+    // Called by Button OnClick
+    public void CloseOptions_Button()
+    {
+        if (!IsPaused)
+            return;
+
+        HideGroup(optionsGroup);
+        ShowGroup(pauseGroup);
+    }
+
+    private void Pause_Internal()
     {
         float t0 = Time.realtimeSinceStartup;
-        LogStep("ESC pressed -> Pause()", t0);
+        LogStep("Pause", t0);
 
         IsPaused = true;
-        LogStep("IsPaused=true", t0);
-
         Time.timeScale = 0f;
-        LogStep("Time.timeScale=0", t0);
 
         ShowGroup(pauseGroup);
         HideGroup(optionsGroup);
-        LogStep("UI groups set", t0);
 
         SetGameplayEnabled(false);
-        LogStep("Gameplay scripts disabled", t0);
-
         PauseInput();
-        LogStep("PauseInput done", t0);
 
-        UnityEngine.Cursor.lockState = CursorLockMode.None;
-        UnityEngine.Cursor.visible = true;
-        LogStep("Cursor unlocked + visible", t0);
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
 
         if (menuMusicSource != null && menuMusicSource.clip != null && !menuMusicSource.isPlaying)
         {
-            if (skipPauseMusic)
-            {
-                LogStep("Music SKIPPED (debug flag)", t0);
-            }
-            else
-            {
-                menuMusicSource.time = 0f;
+            if (!skipPauseMusic)
                 menuMusicSource.Play();
-                LogStep("Music Play()", t0);
-            }
         }
+
+        LogStep("Pause done", t0);
     }
 
-    public void Resume()
+    private void Resume_Internal()
     {
         float t0 = Time.realtimeSinceStartup;
-        LogStep("Resume()", t0);
+        LogStep("Resume", t0);
 
         IsPaused = false;
         Time.timeScale = 1f;
@@ -164,8 +159,8 @@ public class PauseMenu : MonoBehaviour
         SetGameplayEnabled(true);
         ResumeInput();
 
-        UnityEngine.Cursor.lockState = CursorLockMode.Locked;
-        UnityEngine.Cursor.visible = false;
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
 
         if (menuMusicSource != null)
         {
@@ -173,27 +168,10 @@ public class PauseMenu : MonoBehaviour
             menuMusicSource.time = 0f;
         }
 
-        LogStep("Resumed OK", t0);
+        LogStep("Resume done", t0);
     }
 
-    public void OpenOptions()
-    {
-        if (!IsPaused) return;
-        HideGroup(pauseGroup);
-        ShowGroup(optionsGroup);
-    }
-
-    public void CloseOptions()
-    {
-        if (!IsPaused) return;
-        HideGroup(optionsGroup);
-        ShowGroup(pauseGroup);
-    }
-
-    // =========================
-    // Warmup (optional)
-    // =========================
-    private IEnumerator WarmupRealPauseCycle()
+    private IEnumerator WarmupPauseCycle()
     {
         isWarmupRunning = true;
 
@@ -205,24 +183,23 @@ public class PauseMenu : MonoBehaviour
 
         CacheActionMaps();
 
-        float prevTimeScale = Time.timeScale;
+        float previousTimeScale = Time.timeScale;
 
-        // Pause without showing UI (groups already hidden)
         Time.timeScale = 0f;
         SetGameplayEnabled(false);
         PauseInput();
 
-        UnityEngine.Cursor.lockState = CursorLockMode.None;
-        UnityEngine.Cursor.visible = true;
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
 
         yield return null;
 
-        UnityEngine.Cursor.lockState = CursorLockMode.Locked;
-        UnityEngine.Cursor.visible = false;
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
 
         ResumeInput();
         SetGameplayEnabled(true);
-        Time.timeScale = prevTimeScale;
+        Time.timeScale = previousTimeScale;
 
         HideGroup(pauseGroup);
         HideGroup(optionsGroup);
@@ -230,42 +207,16 @@ public class PauseMenu : MonoBehaviour
         isWarmupRunning = false;
     }
 
-    // =========================
-    // Internal helpers
-    // =========================
-    private void LogStep(string label, float t0)
+    private void ValidateRefs()
     {
-        if (!debugPauseSpike) return;
-        float ms = (Time.realtimeSinceStartup - t0) * 1000f;
-        Debug.Log($"[PauseMenu] {label}  ({ms:F1} ms)");
-    }
+        if (pauseGroup == null)
+            Debug.LogError("PauseMenu: pauseGroup is not assigned.", this);
 
-    private CanvasGroup EnsureCanvasGroup(GameObject panel)
-    {
-        if (panel == null) return null;
+        if (optionsGroup == null)
+            Debug.LogError("PauseMenu: optionsGroup is not assigned.", this);
 
-        if (!panel.activeSelf)
-            panel.SetActive(true);
-
-        var cg = panel.GetComponent<CanvasGroup>();
-        if (cg == null) cg = panel.AddComponent<CanvasGroup>();
-        return cg;
-    }
-
-    private void ShowGroup(CanvasGroup cg)
-    {
-        if (cg == null) return;
-        cg.alpha = 1f;
-        cg.interactable = true;
-        cg.blocksRaycasts = true;
-    }
-
-    private void HideGroup(CanvasGroup cg)
-    {
-        if (cg == null) return;
-        cg.alpha = 0f;
-        cg.interactable = false;
-        cg.blocksRaycasts = false;
+        if (playerInput == null)
+            Debug.LogError("PauseMenu: playerInput is not assigned.", this);
     }
 
     private void CacheActionMaps()
@@ -274,7 +225,8 @@ public class PauseMenu : MonoBehaviour
         uiMap = null;
         gameplayMap = null;
 
-        if (playerInput == null || playerInput.actions == null) return;
+        if (playerInput == null || playerInput.actions == null)
+            return;
 
         if (playerInput.currentActionMap != null)
             previousActionMap = playerInput.currentActionMap.name;
@@ -285,15 +237,13 @@ public class PauseMenu : MonoBehaviour
 
     private void PauseInput()
     {
-        if (playerInput == null) return;
+        if (playerInput == null)
+            return;
 
         playerInput.ActivateInput();
 
         if (playerInput.currentActionMap != null)
             previousActionMap = playerInput.currentActionMap.name;
-
-        if (playerInput.actions != null && uiMap == null)
-            uiMap = playerInput.actions.FindActionMap(uiActionMapName, false);
 
         if (uiMap != null)
             playerInput.SwitchCurrentActionMap(uiMap.name);
@@ -301,12 +251,10 @@ public class PauseMenu : MonoBehaviour
 
     private void ResumeInput()
     {
-        if (playerInput == null) return;
+        if (playerInput == null)
+            return;
 
         playerInput.ActivateInput();
-
-        if (playerInput.actions != null && gameplayMap == null)
-            gameplayMap = playerInput.actions.FindActionMap(gameplayActionMapName, false);
 
         if (gameplayMap != null)
         {
@@ -316,14 +264,16 @@ public class PauseMenu : MonoBehaviour
 
         if (!string.IsNullOrWhiteSpace(previousActionMap) && playerInput.actions != null)
         {
-            var map = playerInput.actions.FindActionMap(previousActionMap, false);
-            if (map != null) playerInput.SwitchCurrentActionMap(map.name);
+            InputActionMap map = playerInput.actions.FindActionMap(previousActionMap, false);
+            if (map != null)
+                playerInput.SwitchCurrentActionMap(map.name);
         }
     }
 
     private void SetGameplayEnabled(bool enabled)
     {
-        if (disableOnPause == null) return;
+        if (disableOnPause == null)
+            return;
 
         for (int i = 0; i < disableOnPause.Length; i++)
         {
@@ -332,28 +282,59 @@ public class PauseMenu : MonoBehaviour
         }
     }
 
-    private void SetupMusic(AudioSource src)
+    private void SetupMusic(AudioSource source)
     {
-        if (src == null) return;
-        src.playOnAwake = false;
-        src.loop = true;
-        src.spatialBlend = 0f;
-        src.volume = AudioListener.volume;
+        if (source == null)
+            return;
+
+        source.playOnAwake = false;
+        source.loop = true;
+        source.spatialBlend = 0f;
+        source.volume = AudioListener.volume;
     }
 
-    private void OnVolumeChanged(float v)
+    private void OnVolumeChanged_Event(float value)
     {
-        ApplyVolume(v);
-        PlayerPrefs.SetFloat(VolumeKey, v);
+        ApplyVolume(value);
+        PlayerPrefs.SetFloat(VolumeKey, value);
         PlayerPrefs.Save();
     }
 
-    private void ApplyVolume(float v)
+    private void ApplyVolume(float value)
     {
-        v = Mathf.Clamp01(v);
-        AudioListener.volume = v;
+        value = Mathf.Clamp01(value);
+        AudioListener.volume = value;
 
         if (menuMusicSource != null)
-            menuMusicSource.volume = v;
+            menuMusicSource.volume = value;
+    }
+
+    private void ShowGroup(CanvasGroup group)
+    {
+        if (group == null)
+            return;
+
+        group.alpha = 1f;
+        group.interactable = true;
+        group.blocksRaycasts = true;
+    }
+
+    private void HideGroup(CanvasGroup group)
+    {
+        if (group == null)
+            return;
+
+        group.alpha = 0f;
+        group.interactable = false;
+        group.blocksRaycasts = false;
+    }
+
+    private void LogStep(string label, float t0)
+    {
+        if (!debugPauseSpike)
+            return;
+
+        float ms = (Time.realtimeSinceStartup - t0) * 1000f;
+        Debug.Log($"[PauseMenu] {label} ({ms:F1} ms)", this);
     }
 }

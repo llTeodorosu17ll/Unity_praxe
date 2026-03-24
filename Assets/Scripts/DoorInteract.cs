@@ -8,9 +8,6 @@ public class DoorInteract : MonoBehaviour
     [SerializeField] private string playerTag = "Player";
     [SerializeField] private int keysCost = 1;
 
-    [Header("References")]
-    [SerializeField] private KeyManager keyManager;
-
     [Header("Navigation")]
     [SerializeField] private NavMeshObstacle navObstacle;
 
@@ -37,24 +34,20 @@ public class DoorInteract : MonoBehaviour
     private bool isOpen;
     private bool unlocked;
 
-    // ---------- Save/Load API ----------
     public string DoorId => gameObject.name;
     public bool IsOpen => isOpen;
     public bool IsUnlocked => unlocked;
 
-    // ---------- Unity event functions ----------
     private void Awake()
     {
         unlocked = startUnlocked;
         isOpen = startOpen;
 
-        if (uiHint == null)
-            uiHint = FindFirstObjectByType<UIHint>();
-
         if (animator == null)
         {
-            animator = GetComponentInChildren<Animator>();
-            if (animator == null) animator = GetComponentInParent<Animator>();
+            animator = GetComponentInChildren<Animator>(true);
+            if (animator == null)
+                animator = GetComponentInParent<Animator>();
         }
 
         if (navObstacle == null)
@@ -62,35 +55,33 @@ public class DoorInteract : MonoBehaviour
 
         if (navObstacle != null)
             navObstacle.enabled = !isOpen;
-
-        if (debugLogs)
-            Debug.Log($"DoorInteract Awake: {name} (unlocked={unlocked}, open={isOpen})", this);
     }
 
     private void Update()
     {
-        if (!playerInside) return;
+        if (!playerInside)
+            return;
+
+        if (uiHint == null && GameManager.HasInstance)
+            uiHint = GameManager.Instance.UIHint;
 
         RefreshHint();
 
-        if (!PressedInteract()) return;
+        if (!PressedInteract())
+            return;
 
         if (!isOpen)
         {
-            // Try OPEN
             if (unlocked)
             {
                 OpenDoor();
                 return;
             }
 
-            if (keyManager == null)
-            {
-                Debug.LogError("DoorInteract: KeyManager reference not assigned.", this);
+            if (!GameManager.HasInstance)
                 return;
-            }
 
-            if (keyManager.TrySpend(keysCost))
+            if (GameManager.Instance.TrySpendKeys(keysCost))
             {
                 unlocked = true;
                 OpenDoor();
@@ -107,38 +98,35 @@ public class DoorInteract : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        if (!other.CompareTag(playerTag)) return;
+        if (other == null || !other.CompareTag(playerTag))
+            return;
 
         playerInside = true;
-        if (debugLogs) Debug.Log($"Door '{name}': player entered trigger", this);
         RefreshHint();
     }
 
     private void OnTriggerExit(Collider other)
     {
-        if (!other.CompareTag(playerTag)) return;
+        if (other == null || !other.CompareTag(playerTag))
+            return;
 
         playerInside = false;
-        if (debugLogs) Debug.Log($"Door '{name}': player left trigger", this);
-
         uiHint?.Hide();
     }
 
-    // ---------- Public (Save/Load) ----------
     public void ApplySavedState(bool unlockedValue, bool openValue)
     {
         unlocked = unlockedValue;
 
         if (openValue)
-            OpenDoor(true);
+            OpenDoor(false);
         else
-            CloseDoor(true);
+            CloseDoor(false);
 
         if (debugLogs)
             Debug.Log($"Door '{name}' ApplySavedState: unlocked={unlocked}, open={isOpen}", this);
     }
 
-    // ---------- Internal logic ----------
     private void OpenDoor(bool playAnimation = true)
     {
         isOpen = true;
@@ -173,8 +161,14 @@ public class DoorInteract : MonoBehaviour
 
     private void RefreshHint()
     {
-        if (uiHint == null) return;
-        if (!playerInside) { uiHint.Hide(); return; }
+        if (uiHint == null)
+            return;
+
+        if (!playerInside)
+        {
+            uiHint.Hide();
+            return;
+        }
 
         if (isOpen)
         {
@@ -188,7 +182,7 @@ public class DoorInteract : MonoBehaviour
             return;
         }
 
-        bool hasKey = keyManager != null && keyManager.Keys >= keysCost;
+        bool hasKey = GameManager.HasInstance && GameManager.Instance.Keys >= keysCost;
         uiHint.Show(hasKey ? msgOpenUsesKey : msgNeedKey);
     }
 

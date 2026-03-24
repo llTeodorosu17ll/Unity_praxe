@@ -5,10 +5,7 @@ public class SpawnManager : MonoBehaviour
 {
     [Header("Auto Generate (New Game)")]
     [SerializeField] private bool generateOnStart = true;
-
-    [Tooltip("If true: generate random seed on Start (New Game). If false: use fixed seed.")]
     [SerializeField] private bool useRandomSeed = true;
-
     [SerializeField] private int fixedSeed = 12345;
 
     private readonly List<SpawnPoint> spawnPoints = new();
@@ -22,7 +19,6 @@ public class SpawnManager : MonoBehaviour
         spawnPoints.Clear();
         spawnPoints.AddRange(FindObjectsByType<SpawnPoint>(FindObjectsSortMode.None));
 
-        // Deterministic order (important!)
         spawnPoints.Sort((a, b) =>
         {
             if (a == null && b == null) return 0;
@@ -32,7 +28,6 @@ public class SpawnManager : MonoBehaviour
             int nameCmp = string.CompareOrdinal(a.gameObject.name, b.gameObject.name);
             if (nameCmp != 0) return nameCmp;
 
-            // if same name, sort by position
             int x = a.transform.position.x.CompareTo(b.transform.position.x);
             if (x != 0) return x;
             int y = a.transform.position.y.CompareTo(b.transform.position.y);
@@ -41,13 +36,24 @@ public class SpawnManager : MonoBehaviour
         });
     }
 
+    private void OnEnable()
+    {
+        if (GameManager.HasInstance)
+            GameManager.Instance.RegisterSpawnManager(this);
+    }
+
+    private void OnDisable()
+    {
+        if (GameManager.HasInstance)
+            GameManager.Instance.UnregisterSpawnManager(this);
+    }
+
     private void Start()
     {
         if (!generateOnStart)
             return;
 
-        // If we are loading a save, DO NOT generate random new items here.
-        if (SaveGameManager.Instance != null && SaveGameManager.Instance.IsLoading)
+        if (GameManager.HasInstance && GameManager.Instance.IsLoading)
             return;
 
         int seed = useRandomSeed ? Random.Range(int.MinValue, int.MaxValue) : fixedSeed;
@@ -63,8 +69,9 @@ public class SpawnManager : MonoBehaviour
         Random.State oldState = Random.state;
         Random.InitState(seed);
 
-        foreach (var point in spawnPoints)
+        for (int i = 0; i < spawnPoints.Count; i++)
         {
+            SpawnPoint point = spawnPoints[i];
             if (point == null) continue;
             TrySpawnAtPoint(point);
         }
@@ -86,18 +93,19 @@ public class SpawnManager : MonoBehaviour
             GameObject prefab = point.AllowedPrefabs[index];
             if (prefab == null) return;
 
-            var spawned = Instantiate(prefab, point.transform.position, point.transform.rotation);
+            GameObject spawned = Instantiate(prefab, point.transform.position, point.transform.rotation);
             spawnedObjects.Add(spawned);
         }
         else
         {
-            foreach (var prefab in point.AllowedPrefabs)
+            for (int i = 0; i < point.AllowedPrefabs.Count; i++)
             {
+                GameObject prefab = point.AllowedPrefabs[i];
                 if (prefab == null) continue;
 
                 if (Random.value <= point.SpawnChance)
                 {
-                    var spawned = Instantiate(prefab, point.transform.position, point.transform.rotation);
+                    GameObject spawned = Instantiate(prefab, point.transform.position, point.transform.rotation);
                     spawnedObjects.Add(spawned);
                 }
             }
@@ -111,6 +119,7 @@ public class SpawnManager : MonoBehaviour
             if (spawnedObjects[i] != null)
                 Destroy(spawnedObjects[i]);
         }
+
         spawnedObjects.Clear();
     }
 }

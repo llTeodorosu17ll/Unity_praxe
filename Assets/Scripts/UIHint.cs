@@ -4,41 +4,51 @@ using TMPro;
 public class UIHint : MonoBehaviour
 {
     [SerializeField] private TMP_Text hintText;
-
-    // optional debug toggle
     [SerializeField] private bool debugTest = false;
 
     private void Reset()
     {
-        hintText = GetComponentInChildren<TMP_Text>(true);
+        if (hintText == null)
+            hintText = GetComponentInChildren<TMP_Text>(true);
     }
 
-    private void Awake()
+    private void OnEnable()
+    {
+        if (GameManager.HasInstance)
+            GameManager.Instance.RegisterUIHint(this);
+    }
+
+    private void OnDisable()
+    {
+        if (GameManager.HasInstance)
+            GameManager.Instance.UnregisterUIHint(this);
+    }
+
+    private void Start()
     {
         if (!debugTest) return;
 
-        Debug.Log("UIHint Awake (debug): " + gameObject.name, this);
         Show("UI TEST");
         Invoke(nameof(Hide), 2f);
     }
 
-    public void Show(string msg)
+    public void Show(string message)
     {
         if (hintText == null)
         {
-            Debug.LogError("UIHint: hintText is NOT assigned!", this);
+            Debug.LogError("UIHint: hintText is not assigned.", this);
             return;
         }
 
         hintText.gameObject.SetActive(true);
-        if (!hintText.enabled) hintText.enabled = true;
-
-        hintText.text = msg;
+        hintText.enabled = true;
+        hintText.text = message;
     }
 
     public void Hide()
     {
-        if (hintText == null) return;
+        if (hintText == null)
+            return;
 
         hintText.text = "";
         hintText.gameObject.SetActive(false);

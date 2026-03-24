@@ -62063,12 +62063,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fc03665a5af229542b5868e77bef29d6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: '::'
-  playerTag: Player
-  winPanelName: Win Panel
-  winTextName: Score in end
-  hudScoreTextName: score
-  nextLevelButtonName: Next Level Button
   playerMovementScript: {fileID: 1512452514}
+  scoreManager: {fileID: 1426362144}
+  winPanel: {fileID: 1064722892}
+  scoreAtTheEnd: {fileID: 1646516844}
+  playerTag: Player
+  winMessageFormat: You got - {0} coins
 --- !u!135 &1258124006
 SphereCollider:
   m_ObjectHideFlags: 0

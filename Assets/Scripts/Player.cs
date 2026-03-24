@@ -4,6 +4,7 @@ using UnityEngine.InputSystem;
 public class Player : MonoBehaviour
 {
     [SerializeField] private PlayerMovement movement;
+    [SerializeField] private StaminaSystem staminaSystem;
     [SerializeField] private FlashlightSystem flashlightSystem;
 
     private void Awake()
@@ -11,8 +12,23 @@ public class Player : MonoBehaviour
         if (movement == null)
             movement = GetComponent<PlayerMovement>();
 
+        if (staminaSystem == null)
+            staminaSystem = GetComponent<StaminaSystem>();
+
         if (flashlightSystem == null)
-            flashlightSystem = GetComponentInChildren<FlashlightSystem>();
+            flashlightSystem = GetComponentInChildren<FlashlightSystem>(true);
+    }
+
+    private void OnEnable()
+    {
+        if (GameManager.HasInstance && movement != null)
+            GameManager.Instance.RegisterPlayer(movement, staminaSystem, flashlightSystem);
+    }
+
+    private void OnDisable()
+    {
+        if (GameManager.HasInstance && movement != null)
+            GameManager.Instance.UnregisterPlayer(movement);
     }
 
     public void OnMove(InputValue value)
@@ -30,18 +46,13 @@ public class Player : MonoBehaviour
     public void OnJump(InputValue value)
     {
         if (movement == null) return;
-
-        if (value.isPressed)
-            movement.JumpRequested = true;
+        if (value.isPressed) movement.JumpRequested = true;
     }
 
-    // Input Action must be named "CombatJump" for this to fire (PlayerInput -> Send Messages)
     public void OnCombatJump(InputValue value)
     {
         if (movement == null) return;
-
-        if (value.isPressed)
-            movement.CombatJumpRequested = true;
+        if (value.isPressed) movement.CombatJumpRequested = true;
     }
 
     public void OnSprint(InputValue value)
@@ -61,11 +72,7 @@ public class Player : MonoBehaviour
 
     public void OnFlashlight(InputValue value)
     {
-        Debug.Log("Flashlight input triggered");
-
         if (flashlightSystem == null) return;
-
-        if (value.isPressed)
-            flashlightSystem.Toggle();
+        if (value.isPressed) flashlightSystem.Toggle();
     }
 }

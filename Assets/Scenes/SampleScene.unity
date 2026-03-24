@@ -2084,7 +2084,7 @@ GameObject:
   - component: {fileID: 231130754}
   - component: {fileID: 231130753}
   m_Layer: 0
-  m_Name: RunProgressManager
+  m_Name: __GameManager
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2099,10 +2099,16 @@ MonoBehaviour:
   m_GameObject: {fileID: 231130752}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 272195914fcb976489ba5af28b7ed723, type: 3}
+  m_Script: {fileID: 11500000, guid: cc1f0ee6e9a9e9c4993ff716f123ad7e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RunProgressManager
-  applyDelayFrames: 2
+  score: 0
+  keys: 0
+  playerMovement: {fileID: 0}
+  staminaSystem: {fileID: 0}
+  flashlightSystem: {fileID: 0}
+  uiHint: {fileID: 0}
+  spawnManager: {fileID: 0}
 --- !u!4 &231130754
 Transform:
   m_ObjectHideFlags: 0
@@ -2829,11 +2835,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: '::'
   playerTag: Player
-  winPanelName: Win Panel
-  winTextName: Score in end
-  hudScoreTextName: score
-  nextLevelButtonName: Next Level Button
-  playerMovementScript: {fileID: 0}
+  playerMovementScript: {fileID: 1512452514}
+  winPanel: {fileID: 572727481}
+  winText: {fileID: 0}
+  nextLevelButton: {fileID: 0}
 --- !u!135 &342207254
 SphereCollider:
   m_ObjectHideFlags: 0
@@ -58091,8 +58096,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f09e69700385ca644a0179034580294d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PauseMenu
-  pausePanel: {fileID: 1376333704}
-  optionsPanel: {fileID: 596886184}
+  pauseGroup: {fileID: 0}
+  optionsGroup: {fileID: 0}
   disableOnPause: []
   playerInput: {fileID: 1512452514}
   uiActionMapName: UI
@@ -58113,16 +58118,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1c868c0745c61284d8d7a60880d0891e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StatusHudUI
-  staminaSystem: {fileID: 1512452520}
-  flashlightSystem: {fileID: 1399065543}
   staminaFill: {fileID: 0}
   staminaText: {fileID: 0}
   batteryFill: {fileID: 0}
   batteryText: {fileID: 0}
-  autoCreateUI: 1
-  bottomPadding: 22
-  sidePadding: 22
-  barSize: {x: 260, y: 18}
+  scoreText: {fileID: 0}
+  keysText: {fileID: 0}
+  staminaLabel: STAMINA
+  batteryLabel: FLASHLIGHT
+  scorePrefix: 'Score count = '
+  keysPrefix: 'Keys count = '
   updateInterval: 0.05
 --- !u!1001 &967063797
 PrefabInstance:
@@ -61870,6 +61875,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PickUpScript
   pickupId: 
   playerTag: Player
+  rewards: []
 --- !u!114 &1452195423
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -62192,6 +62198,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Player
   movement: {fileID: 1512452513}
+  staminaSystem: {fileID: 1512452520}
   flashlightSystem: {fileID: 1399065543}
 --- !u!136 &1512452517
 CapsuleCollider:
@@ -62364,7 +62371,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::StaminaActionRules
   movement: {fileID: 1512452513}
   stamina: {fileID: 1512452520}
-  characterController: {fileID: 0}
+  characterController: {fileID: 1512452515}
   minPercentToStartSprint: 2
   minPercentToJump: 10
   jumpCostPercent: 10
