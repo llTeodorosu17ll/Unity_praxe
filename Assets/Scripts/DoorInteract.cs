@@ -38,6 +38,18 @@ public class DoorInteract : MonoBehaviour
     public bool IsOpen => isOpen;
     public bool IsUnlocked => unlocked;
 
+    private void OnEnable()
+    {
+        if (GameManager.HasInstance)
+            GameManager.Instance.RegisterDoor(this);
+    }
+
+    private void OnDisable()
+    {
+        if (GameManager.HasInstance)
+            GameManager.Instance.UnregisterDoor(this);
+    }
+
     private void Awake()
     {
         unlocked = startUnlocked;

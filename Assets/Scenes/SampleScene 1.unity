@@ -59294,16 +59294,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f09e69700385ca644a0179034580294d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PauseMenu
-  pausePanel: {fileID: 1376333704}
-  optionsPanel: {fileID: 596886184}
+  pauseGroup: {fileID: 0}
+  optionsGroup: {fileID: 0}
   disableOnPause: []
   playerInput: {fileID: 1512452514}
-  uiActionMapName: UI
-  gameplayActionMapName: Player
   menuMusicSource: {fileID: 1965065537}
   volumeSlider: {fileID: 1827193234}
-  debugPauseSpike: 1
-  skipPauseMusic: 1
 --- !u!114 &963146724
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -59316,16 +59312,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1c868c0745c61284d8d7a60880d0891e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StatusHudUI
-  staminaSystem: {fileID: 1512452520}
-  flashlightSystem: {fileID: 1399065543}
   staminaFill: {fileID: 0}
   staminaText: {fileID: 0}
   batteryFill: {fileID: 0}
   batteryText: {fileID: 0}
-  autoCreateUI: 1
-  bottomPadding: 22
-  sidePadding: 22
-  barSize: {x: 260, y: 18}
+  scoreText: {fileID: 0}
+  keysText: {fileID: 0}
+  staminaLabel: STAMINA
+  batteryLabel: FLASHLIGHT
+  scorePrefix: 'Score count = '
+  keysPrefix: 'Keys count = '
   updateInterval: 0.05
 --- !u!1001 &967063797
 PrefabInstance:
@@ -62063,12 +62059,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fc03665a5af229542b5868e77bef29d6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: '::'
-  playerMovementScript: {fileID: 1512452514}
-  scoreManager: {fileID: 1426362144}
-  winPanel: {fileID: 1064722892}
-  scoreAtTheEnd: {fileID: 1646516844}
   playerTag: Player
-  winMessageFormat: You got - {0} coins
+  playerMovementScript: {fileID: 1512452514}
+  winPanel: {fileID: 1064722892}
+  winText: {fileID: 0}
+  nextLevelButton: {fileID: 0}
 --- !u!135 &1258124006
 SphereCollider:
   m_ObjectHideFlags: 0
@@ -63526,25 +63521,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FlashlightSystem
   flashlightLight: {fileID: 1399065542}
+  clickAudioSource: {fileID: 0}
+  mountPoint: {fileID: 1282510126}
+  aimSource: {fileID: 401886480}
   maxBattery: 100
   drainPerSecond: 2
-  clickAudioSource: {fileID: 0}
   clickVolume: 1
-  playClickOnToggle: 1
-  batteryFill: {fileID: 0}
-  batteryText: {fileID: 0}
-  batteryLabel: FLASHLIGHT
-  batteryFillFromRight: 0
-  showPercentText: 1
-  showOnOffState: 1
-  autoConfigureFillImage: 1
-  mountPoint: {fileID: 1282510126}
-  followPosition: 1
-  rotateWithAim: 1
-  aimSource: {fileID: 401886480}
-  autoFindAimSource: 1
-  aimOnlyWhenOn: 0
-  ignoreRoll: 1
   extraRotationOffsetEuler: {x: 0, y: 0, z: 0}
   rotationSmooth: 0
 --- !u!82 &1399065546
@@ -64197,6 +64179,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PickUpScript
   pickupId: 
   playerTag: Player
+  rewards:
+  - type: 2
+    amount: 10
 --- !u!114 &1452195423
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -64571,21 +64556,13 @@ MonoBehaviour:
   maxPitch: 50
   jumpHeight: 1
   gravity: -20
-  ungroundedGraceTime: 0.08
-  forceAnimatorEvaluateOnJump: 1
   combatJumpCooldown: 1
   groundSnapRayStartHeight: 2
   groundSnapRayDistance: 5
   groundSnapOffset: 0.02
   animator: {fileID: 1656536331}
-  speedParam: Speed
-  groundedParam: IsGrounded
-  crouchParam: IsCrouching
-  jumpTrigger: Jump
-  combatJumpTrigger: CombatJump
   runSpeedForAnim: 6
   animSmooth: 12
-  staminaSystem: {fileID: 1512452520}
 --- !u!114 &1512452514
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -64654,6 +64631,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Player
   movement: {fileID: 1512452513}
+  staminaSystem: {fileID: 0}
   flashlightSystem: {fileID: 1399065543}
 --- !u!136 &1512452517
 CapsuleCollider:
@@ -66066,13 +66044,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 21cd229e5137e1942bd13a3677c20798, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyVision
+  eyeTransform: {fileID: 0}
   viewRadius: 6
   viewAngle: 120
   obstacleMask:
     serializedVersion: 2
     m_Bits: 65
-  eye: {fileID: 587647372}
-  eyeHeight: 0
 --- !u!195 &1641312656
 NavMeshAgent:
   m_ObjectHideFlags: 0
@@ -67575,13 +67552,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 21cd229e5137e1942bd13a3677c20798, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyVision
+  eyeTransform: {fileID: 0}
   viewRadius: 6
   viewAngle: 120
   obstacleMask:
     serializedVersion: 2
     m_Bits: 65
-  eye: {fileID: 952803128}
-  eyeHeight: 0
 --- !u!114 &1760314869
 MonoBehaviour:
   m_ObjectHideFlags: 0

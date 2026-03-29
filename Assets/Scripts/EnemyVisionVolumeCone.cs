@@ -34,7 +34,8 @@ public class EnemyVisionVolumeCone : MonoBehaviour
 
     private void Awake()
     {
-        if (vision == null) vision = GetComponent<EnemyVision>();
+        if (vision == null)
+            vision = GetComponent<EnemyVision>();
 
         CreateConeObjectIfNeeded();
         RebuildMesh();
@@ -45,7 +46,8 @@ public class EnemyVisionVolumeCone : MonoBehaviour
 
     private void LateUpdate()
     {
-        if (vision == null || coneObj == null) return;
+        if (vision == null || coneObj == null)
+            return;
 
         Vector3 p = vision.EyeWorldPosition;
         p.y += yOffset;
@@ -67,15 +69,23 @@ public class EnemyVisionVolumeCone : MonoBehaviour
 
     private void OnDestroy()
     {
-        if (coneMesh != null) Destroy(coneMesh);
-        if (runtimeMat != null) Destroy(runtimeMat);
+        if (coneMesh != null)
+            Destroy(coneMesh);
+
+        if (runtimeMat != null)
+            Destroy(runtimeMat);
+
+        if (coneObj != null)
+            Destroy(coneObj);
     }
 
     private void CreateConeObjectIfNeeded()
     {
-        if (coneObj != null) return;
+        if (coneObj != null)
+            return;
 
-        coneObj = new GameObject("Vision_ConeVolume");
+        coneObj = new GameObject("__VisionConeVolume_Runtime");
+        coneObj.hideFlags = HideFlags.HideInHierarchy;
         coneObj.transform.SetParent(transform, false);
 
         mf = coneObj.AddComponent<MeshFilter>();
@@ -123,7 +133,8 @@ public class EnemyVisionVolumeCone : MonoBehaviour
 
     private void ApplyMaterialParams()
     {
-        if (mr == null || mr.sharedMaterial == null || vision == null) return;
+        if (mr == null || mr.sharedMaterial == null || vision == null)
+            return;
 
         Material mat = mr.sharedMaterial;
 
@@ -142,7 +153,8 @@ public class EnemyVisionVolumeCone : MonoBehaviour
 
     private void RebuildMesh()
     {
-        if (vision == null || coneMesh == null) return;
+        if (vision == null || coneMesh == null)
+            return;
 
         BuildClippedWedgePrism(
             mesh: coneMesh,

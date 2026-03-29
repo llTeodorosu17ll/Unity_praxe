@@ -80,6 +80,7 @@ public class EnemyMovement : MonoBehaviour
 
         if (agent == null) agent = GetComponent<NavMeshAgent>();
         if (vision == null) vision = GetComponent<EnemyVision>();
+        if (player == null && GameManager.HasInstance) player = GameManager.Instance.PlayerTransform;
 
         if (agent == null || !agent.isOnNavMesh) return;
 
@@ -110,20 +111,37 @@ public class EnemyMovement : MonoBehaviour
             HandleGameOver(playerObj);
     }
 
+    private void OnEnable()
+    {
+        if (GameManager.HasInstance)
+            GameManager.Instance.RegisterEnemy(this);
+    }
+
+    private void OnDisable()
+    {
+        if (GameManager.HasInstance)
+            GameManager.Instance.UnregisterEnemy(this);
+    }
+
     private void Awake()
     {
         if (agent == null) agent = GetComponent<NavMeshAgent>();
-        if (animator == null) animator = GetComponentInChildren<Animator>();
+        if (animator == null) animator = GetComponentInChildren<Animator>(true);
         if (vision == null) vision = GetComponent<EnemyVision>();
         if (audioSource == null) audioSource = GetComponent<AudioSource>();
 
         visionCone = GetComponentInChildren<EnemyVisionVolumeCone>(true);
-
         startPos = transform.position;
     }
 
     private void Start()
     {
+        if (player == null && GameManager.HasInstance)
+            player = GameManager.Instance.PlayerTransform;
+
+        if (playerMovementScript == null && GameManager.HasInstance)
+            playerMovementScript = GameManager.Instance.PlayerMovement;
+
         if (agent != null)
             agent.speed = patrolSpeed;
 
@@ -140,6 +158,12 @@ public class EnemyMovement : MonoBehaviour
 
     private void Update()
     {
+        if (player == null && GameManager.HasInstance)
+            player = GameManager.Instance.PlayerTransform;
+
+        if (playerMovementScript == null && GameManager.HasInstance)
+            playerMovementScript = GameManager.Instance.PlayerMovement;
+
         if (agent == null || !agent.isOnNavMesh)
             return;
 
@@ -170,8 +194,8 @@ public class EnemyMovement : MonoBehaviour
 
         if (chasing && player != null && !seesPlayer)
         {
-            float d = Vector3.Distance(transform.position, player.position);
-            if (d >= loseDistance)
+            float distance = Vector3.Distance(transform.position, player.position);
+            if (distance >= loseDistance)
             {
                 chasing = false;
                 if (returnToStart) returning = true;
@@ -288,7 +312,6 @@ public class EnemyMovement : MonoBehaviour
             }
             else
             {
-                // pick random, optionally avoid repeating the same point
                 int guard = 0;
                 do
                 {
@@ -322,18 +345,20 @@ public class EnemyMovement : MonoBehaviour
 
     private void HandleGameOver(GameObject playerObj = null)
     {
+        if (playerMovementScript == null && GameManager.HasInstance)
+            playerMovementScript = GameManager.Instance.PlayerMovement;
+
         if (playerMovementScript != null)
             playerMovementScript.enabled = false;
 
+        if (playerObj != null)
+        {
+            CharacterController cc = playerObj.GetComponent<CharacterController>();
+            if (cc != null)
+                cc.enabled = false;
+        }
+
         if (gameOverUI != null)
             gameOverUI.SetActive(true);
-
-        enabled = false;
-
-        if (agent != null)
-        {
-            agent.isStopped = true;
-            agent.ResetPath();
-        }
     }
 }

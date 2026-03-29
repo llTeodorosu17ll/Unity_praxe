@@ -5,25 +5,21 @@ using TMPro;
 [DefaultExecutionOrder(12000)]
 public class StatusHudUI : MonoBehaviour
 {
-    [Header("Bars")]
-    [SerializeField] private Image staminaFill;
-    [SerializeField] private TMP_Text staminaText;
+    private const string ScorePrefix = "Score count = ";
+    private const string KeysPrefix = "Keys count = ";
+    private const string StaminaLabel = "STAMINA";
+    private const string BatteryLabel = "FLASHLIGHT";
+    private const float UpdateInterval = 0.05f;
 
-    [SerializeField] private Image batteryFill;
-    [SerializeField] private TMP_Text batteryText;
-
-    [Header("Counters")]
+    [Header("Required")]
     [SerializeField] private TMP_Text scoreText;
     [SerializeField] private TMP_Text keysText;
 
-    [Header("Labels")]
-    [SerializeField] private string staminaLabel = "STAMINA";
-    [SerializeField] private string batteryLabel = "FLASHLIGHT";
-    [SerializeField] private string scorePrefix = "Score count = ";
-    [SerializeField] private string keysPrefix = "Keys count = ";
-
-    [Header("Update")]
-    [SerializeField] private float updateInterval = 0.05f;
+    [Header("Optional Bars")]
+    [SerializeField] private Image staminaFill;
+    [SerializeField] private TMP_Text staminaText;
+    [SerializeField] private Image batteryFill;
+    [SerializeField] private TMP_Text batteryText;
 
     private float nextUpdateTime;
 
@@ -49,23 +45,23 @@ public class StatusHudUI : MonoBehaviour
 
     private void Update()
     {
-        if (updateInterval > 0f && Time.unscaledTime < nextUpdateTime)
+        if (Time.unscaledTime < nextUpdateTime)
             return;
 
-        nextUpdateTime = Time.unscaledTime + updateInterval;
+        nextUpdateTime = Time.unscaledTime + UpdateInterval;
         RefreshBars();
     }
 
     private void OnScoreChanged_Event(int value)
     {
         if (scoreText != null)
-            scoreText.text = scorePrefix + value;
+            scoreText.text = ScorePrefix + value;
     }
 
     private void OnKeysChanged_Event(int value)
     {
         if (keysText != null)
-            keysText.text = keysPrefix + value;
+            keysText.text = KeysPrefix + value;
     }
 
     private void RefreshAll()
@@ -96,7 +92,7 @@ public class StatusHudUI : MonoBehaviour
                 staminaFill.fillAmount = ratio;
 
             if (staminaText != null)
-                staminaText.text = $"{staminaLabel}  {Mathf.RoundToInt(ratio * 100f)}%";
+                staminaText.text = $"{StaminaLabel} {Mathf.RoundToInt(ratio * 100f)}%";
         }
 
         if (flashlight != null)
@@ -111,8 +107,8 @@ public class StatusHudUI : MonoBehaviour
             if (batteryText != null)
             {
                 batteryText.text = flashlight.IsOn
-                    ? $"{batteryLabel}  {Mathf.RoundToInt(ratio * 100f)}%"
-                    : $"{batteryLabel}  {Mathf.RoundToInt(ratio * 100f)}%  (OFF)";
+                    ? $"{BatteryLabel} {Mathf.RoundToInt(ratio * 100f)}%"
+                    : $"{BatteryLabel} {Mathf.RoundToInt(ratio * 100f)}% (OFF)";
             }
         }
     }

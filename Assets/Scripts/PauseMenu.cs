@@ -5,29 +5,25 @@ using UnityEngine.UI;
 
 public class PauseMenu : MonoBehaviour
 {
-    [Header("Panels (must already have CanvasGroup)")]
-    [SerializeField] private CanvasGroup pauseGroup;
-    [SerializeField] private CanvasGroup optionsGroup;
+    private const string VolumeKey = "volume";
+    private const string UiActionMapName = "UI";
+    private const string GameplayActionMapName = "Player";
 
-    [Header("Gameplay scripts to disable on pause")]
+    [Header("Panels")]
+    [SerializeField] private RectTransform pausePanel;
+    [SerializeField] private RectTransform optionsPanel;
+
+    [Header("Gameplay Scripts To Disable")]
     [SerializeField] private MonoBehaviour[] disableOnPause;
 
-    [Header("Input System")]
+    [Header("Input")]
     [SerializeField] private PlayerInput playerInput;
-    [SerializeField] private string uiActionMapName = "UI";
-    [SerializeField] private string gameplayActionMapName = "Player";
 
-    [Header("Optional")]
+    [Header("Audio / UI")]
     [SerializeField] private AudioSource menuMusicSource;
     [SerializeField] private Slider volumeSlider;
 
-    [Header("Debug")]
-    [SerializeField] private bool debugPauseSpike = false;
-    [SerializeField] private bool skipPauseMusic = true;
-
     public static bool IsPaused { get; private set; }
-
-    private const string VolumeKey = "volume";
 
     private string previousActionMap;
     private InputActionMap uiMap;
@@ -41,8 +37,8 @@ public class PauseMenu : MonoBehaviour
 
         ValidateRefs();
 
-        HideGroup(pauseGroup);
-        HideGroup(optionsGroup);
+        SetPanelActive(pausePanel, false);
+        SetPanelActive(optionsPanel, false);
 
         CacheActionMaps();
 
@@ -88,6 +84,8 @@ public class PauseMenu : MonoBehaviour
         {
             if (!IsPaused)
                 Pause_Internal();
+            else if (optionsPanel != null && optionsPanel.gameObject.activeSelf)
+                CloseOptions_Button();
             else
                 Resume_Internal();
         }
@@ -105,8 +103,8 @@ public class PauseMenu : MonoBehaviour
         if (!IsPaused)
             return;
 
-        HideGroup(pauseGroup);
-        ShowGroup(optionsGroup);
+        SetPanelActive(pausePanel, false);
+        SetPanelActive(optionsPanel, true);
     }
 
     // Called by Button OnClick
@@ -115,20 +113,17 @@ public class PauseMenu : MonoBehaviour
         if (!IsPaused)
             return;
 
-        HideGroup(optionsGroup);
-        ShowGroup(pauseGroup);
+        SetPanelActive(optionsPanel, false);
+        SetPanelActive(pausePanel, true);
     }
 
     private void Pause_Internal()
     {
-        float t0 = Time.realtimeSinceStartup;
-        LogStep("Pause", t0);
-
         IsPaused = true;
         Time.timeScale = 0f;
 
-        ShowGroup(pauseGroup);
-        HideGroup(optionsGroup);
+        SetPanelActive(pausePanel, true);
+        SetPanelActive(optionsPanel, false);
 
         SetGameplayEnabled(false);
         PauseInput();
@@ -137,24 +132,16 @@ public class PauseMenu : MonoBehaviour
         Cursor.visible = true;
 
         if (menuMusicSource != null && menuMusicSource.clip != null && !menuMusicSource.isPlaying)
-        {
-            if (!skipPauseMusic)
-                menuMusicSource.Play();
-        }
-
-        LogStep("Pause done", t0);
+            menuMusicSource.Play();
     }
 
     private void Resume_Internal()
     {
-        float t0 = Time.realtimeSinceStartup;
-        LogStep("Resume", t0);
-
         IsPaused = false;
         Time.timeScale = 1f;
 
-        HideGroup(pauseGroup);
-        HideGroup(optionsGroup);
+        SetPanelActive(pausePanel, false);
+        SetPanelActive(optionsPanel, false);
 
         SetGameplayEnabled(true);
         ResumeInput();
@@ -167,8 +154,6 @@ public class PauseMenu : MonoBehaviour
             menuMusicSource.Stop();
             menuMusicSource.time = 0f;
         }
-
-        LogStep("Resume done", t0);
     }
 
     private IEnumerator WarmupPauseCycle()
@@ -201,19 +186,19 @@ public class PauseMenu : MonoBehaviour
         SetGameplayEnabled(true);
         Time.timeScale = previousTimeScale;
 
-        HideGroup(pauseGroup);
-        HideGroup(optionsGroup);
+        SetPanelActive(pausePanel, false);
+        SetPanelActive(optionsPanel, false);
 
         isWarmupRunning = false;
     }
 
     private void ValidateRefs()
     {
-        if (pauseGroup == null)
-            Debug.LogError("PauseMenu: pauseGroup is not assigned.", this);
+        if (pausePanel == null)
+            Debug.LogError("PauseMenu: pausePanel is not assigned.", this);
 
-        if (optionsGroup == null)
-            Debug.LogError("PauseMenu: optionsGroup is not assigned.", this);
+        if (optionsPanel == null)
+            Debug.LogError("PauseMenu: optionsPanel is not assigned.", this);
 
         if (playerInput == null)
             Debug.LogError("PauseMenu: playerInput is not assigned.", this);
@@ -231,8 +216,8 @@ public class PauseMenu : MonoBehaviour
         if (playerInput.currentActionMap != null)
             previousActionMap = playerInput.currentActionMap.name;
 
-        uiMap = playerInput.actions.FindActionMap(uiActionMapName, false);
-        gameplayMap = playerInput.actions.FindActionMap(gameplayActionMapName, false);
+        uiMap = playerInput.actions.FindActionMap(UiActionMapName, false);
+        gameplayMap = playerInput.actions.FindActionMap(GameplayActionMapName, false);
     }
 
     private void PauseInput()
@@ -309,32 +294,9 @@ public class PauseMenu : MonoBehaviour
             menuMusicSource.volume = value;
     }
 
-    private void ShowGroup(CanvasGroup group)
+    private void SetPanelActive(RectTransform panel, bool active)
     {
-        if (group == null)
-            return;
-
-        group.alpha = 1f;
-        group.interactable = true;
-        group.blocksRaycasts = true;
-    }
-
-    private void HideGroup(CanvasGroup group)
-    {
-        if (group == null)
-            return;
-
-        group.alpha = 0f;
-        group.interactable = false;
-        group.blocksRaycasts = false;
-    }
-
-    private void LogStep(string label, float t0)
-    {
-        if (!debugPauseSpike)
-            return;
-
-        float ms = (Time.realtimeSinceStartup - t0) * 1000f;
-        Debug.Log($"[PauseMenu] {label} ({ms:F1} ms)", this);
+        if (panel != null)
+            panel.gameObject.SetActive(active);
     }
 }

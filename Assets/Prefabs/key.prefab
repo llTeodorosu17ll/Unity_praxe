@@ -10,7 +10,6 @@ GameObject:
   m_Component:
   - component: {fileID: 1432885577590990892}
   - component: {fileID: 4918927396071986772}
-  - component: {fileID: 2107577634984743362}
   - component: {fileID: 6724111478960215165}
   - component: {fileID: 1534381161443569997}
   m_Layer: 0
@@ -52,20 +51,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PickUpScript
   pickupId: 
   playerTag: Player
---- !u!114 &2107577634984743362
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4338638054854123959}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 38c604c5ce6529c46ac532136a3307e2, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::AddKeyEffect
-  amount: 1
-  keyManager: {fileID: 0}
+  rewards:
+  - type: 1
+    amount: 1
 --- !u!65 &6724111478960215165
 BoxCollider:
   m_ObjectHideFlags: 0

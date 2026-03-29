@@ -3,61 +3,69 @@ using UnityEngine;
 [DisallowMultipleComponent]
 public class EnemyVision : MonoBehaviour
 {
-    [Header("Vision shape")]
-    [SerializeField] private float viewRadius = 6f;
-    [SerializeField, Range(0f, 360f)] private float viewAngle = 90f;
+    [Header("References")]
+    [SerializeField] private Transform eyeTransform;
 
-    [Header("Line of sight")]
+    [Header("Vision")]
+    [SerializeField] private float viewRadius = 6f;
+    [SerializeField, Range(1f, 179f)] private float viewAngle = 70f;
+
+    [Header("Line Of Sight")]
     [SerializeField] private LayerMask obstacleMask = ~0;
 
-    [Header("Eye position")]
-    [SerializeField] private Transform eye;
-    [SerializeField] private float eyeHeight = 0f;
-
-    // =========================
-    // Unity native methods (order)
-    // =========================
-    private void Awake()
-    {
-        if (eye == null) eye = transform;
-    }
-
-    // =========================
-    // Public API
-    // =========================
-    public bool CanSeeTarget(Transform target)
-    {
-        if (target == null) return false;
-
-        Vector3 origin = EyeWorldPosition;
-        Vector3 toTarget = target.position - origin;
-
-        if (toTarget.sqrMagnitude > viewRadius * viewRadius) return false;
-
-        Vector3 dir = toTarget.normalized;
-        float angleToTarget = Vector3.Angle(transform.forward, dir);
-        if (angleToTarget > viewAngle * 0.5f) return false;
-
-        float distance = toTarget.magnitude;
-        if (Physics.Raycast(origin, dir, distance, obstacleMask, QueryTriggerInteraction.Ignore))
-            return false;
-
-        return true;
-    }
-
+    public Transform EyeTransform => eyeTransform != null ? eyeTransform : transform;
+    public Vector3 EyeWorldPosition => EyeTransform.position;
     public float ViewRadius => viewRadius;
     public float ViewAngle => viewAngle;
     public LayerMask ObstacleMask => obstacleMask;
 
-    public Transform EyeTransform => eye != null ? eye : transform;
-
-    public Vector3 EyeWorldPosition
+    private void Reset()
     {
-        get
-        {
-            Vector3 p = EyeTransform.position;
-            p.y += eyeHeight;
-            return p;
-        }
+        if (eyeTransform == null)
+            eyeTransform = transform;
+    }
+
+    private void Awake()
+    {
+        if (eyeTransform == null)
+            eyeTransform = transform;
+
+        viewRadius = Mathf.Max(0.1f, viewRadius);
+        viewAngle = Mathf.Clamp(viewAngle, 1f, 179f);
+    }
+
+    public bool CanSeeTarget(Transform target)
+    {
+        if (target == null)
+            return false;
+
+        Transform eye = EyeTransform;
+        Vector3 origin = eye.position;
+        Vector3 targetPoint = GetTargetPoint(target);
+        Vector3 toTarget = targetPoint - origin;
+
+        float distance = toTarget.magnitude;
+        if (distance > viewRadius)
+            return false;
+
+        float angle = Vector3.Angle(eye.forward, toTarget);
+        if (angle > viewAngle * 0.5f)
+            return false;
+
+        Vector3 direction = toTarget / Mathf.Max(distance, 0.0001f);
+
+        if (Physics.Raycast(origin, direction, out RaycastHit hit, distance, obstacleMask, QueryTriggerInteraction.Ignore))
+            return hit.transform == target || hit.transform.IsChildOf(target);
+
+        return true;
+    }
+
+    private Vector3 GetTargetPoint(Transform target)
+    {
+        Collider col = target.GetComponent<Collider>();
+        if (col != null)
+            return col.bounds.center;
+
+        return target.position;
     }
 }

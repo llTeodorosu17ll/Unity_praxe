@@ -32,6 +32,18 @@ public class PickUpScript : MonoBehaviour
 
     public string PickupId => pickupId;
 
+    private void OnEnable()
+    {
+        if (GameManager.HasInstance)
+            GameManager.Instance.RegisterPickup(this);
+    }
+
+    private void OnDisable()
+    {
+        if (GameManager.HasInstance)
+            GameManager.Instance.UnregisterPickup(this);
+    }
+
     private void Awake()
     {
         audioSource = GetComponent<AudioSource>();

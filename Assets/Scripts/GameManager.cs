@@ -6,54 +6,54 @@ using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.SceneManagement;
 
-[DefaultExecutionOrder(-10000)]
-public sealed class GameManager : MonoBehaviour
+[Serializable]
+public class EnemyState
 {
-    [Serializable]
-    private class EnemySave
-    {
-        public string id;
-        public Vector3 pos;
-        public Quaternion rot;
-        public bool chasingPlayer;
-        public bool returning;
-        public int waypointIndex;
-    }
+    public string id;
+    public Vector3 pos;
+    public Quaternion rot;
+    public bool chasingPlayer;
+    public bool returning;
+    public int waypointIndex;
+}
 
-    [Serializable]
-    private class DoorSave
-    {
-        public string id;
-        public bool unlocked;
-        public bool open;
-    }
+[Serializable]
+public class DoorState
+{
+    public string id;
+    public bool unlocked;
+    public bool open;
+}
 
-    [Serializable]
-    private class SaveData
-    {
-        public int saveVersion = 3;
+[Serializable]
+public class SaveData
+{
+    public int saveVersion = 4;
 
-        public string sceneName;
+    public string sceneName;
 
-        public Vector3 playerPos;
-        public Quaternion playerRot;
-        public float playerYaw;
-        public float playerPitch;
+    public Vector3 playerPos;
+    public Quaternion playerRot;
+    public float playerYaw;
+    public float playerPitch;
 
-        public int score;
-        public int keys;
+    public int score;
+    public int keys;
 
-        public int spawnSeed;
+    public int spawnSeed;
 
-        public float stamina;
-        public float flashlightBattery;
-        public bool flashlightOn;
+    public float stamina;
+    public float flashlightBattery;
+    public bool flashlightOn;
 
-        public List<string> collectedPickups = new();
-        public List<EnemySave> enemies = new();
-        public List<DoorSave> doors = new();
-    }
+    public List<string> collectedPickups = new();
+    public List<EnemyState> enemies = new();
+    public List<DoorState> doors = new();
+}
 
+[DefaultExecutionOrder(-10000)]
+public class GameManager : MonoBehaviour
+{
     [Serializable]
     private struct SceneTransferData
     {
@@ -67,7 +67,7 @@ public sealed class GameManager : MonoBehaviour
     public static GameManager Instance { get; private set; }
     public static bool HasInstance => Instance != null;
 
-    [Header("Runtime state")]
+    [Header("State")]
     [SerializeField] private int score;
     [SerializeField] private int keys;
 
@@ -82,6 +82,9 @@ public sealed class GameManager : MonoBehaviour
     public event Action<int> KeysChanged;
 
     private readonly HashSet<string> collectedPickupIds = new();
+    private readonly HashSet<EnemyMovement> registeredEnemies = new();
+    private readonly HashSet<DoorInteract> registeredDoors = new();
+    private readonly HashSet<PickUpScript> registeredPickups = new();
 
     private const string FileName = "save.json";
     private string SavePath => Path.Combine(Application.persistentDataPath, FileName);
@@ -103,17 +106,6 @@ public sealed class GameManager : MonoBehaviour
     public UIHint UIHint => uiHint;
     public SpawnManager SpawnManager => spawnManager;
     public Transform PlayerTransform => playerMovement != null ? playerMovement.transform : null;
-
-    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
-    private static void Bootstrap()
-    {
-        if (Instance != null)
-            return;
-
-        GameObject go = new GameObject(nameof(GameManager));
-        DontDestroyOnLoad(go);
-        Instance = go.AddComponent<GameManager>();
-    }
 
     private void Awake()
     {
@@ -175,6 +167,42 @@ public sealed class GameManager : MonoBehaviour
     {
         if (spawnManager == manager)
             spawnManager = null;
+    }
+
+    public void RegisterEnemy(EnemyMovement enemy)
+    {
+        if (enemy != null)
+            registeredEnemies.Add(enemy);
+    }
+
+    public void UnregisterEnemy(EnemyMovement enemy)
+    {
+        if (enemy != null)
+            registeredEnemies.Remove(enemy);
+    }
+
+    public void RegisterDoor(DoorInteract door)
+    {
+        if (door != null)
+            registeredDoors.Add(door);
+    }
+
+    public void UnregisterDoor(DoorInteract door)
+    {
+        if (door != null)
+            registeredDoors.Remove(door);
+    }
+
+    public void RegisterPickup(PickUpScript pickup)
+    {
+        if (pickup != null)
+            registeredPickups.Add(pickup);
+    }
+
+    public void UnregisterPickup(PickUpScript pickup)
+    {
+        if (pickup != null)
+            registeredPickups.Remove(pickup);
     }
 
     // ----------------------------
@@ -255,13 +283,15 @@ public sealed class GameManager : MonoBehaviour
     }
 
     // ----------------------------
-    // UI Button helpers
+    // Buttons
     // ----------------------------
+    // Called by Button OnClick
     public void SaveGame_Button()
     {
         SaveGame();
     }
 
+    // Called by Button OnClick
     public void LoadGame_Button()
     {
         LoadGame();
@@ -275,15 +305,17 @@ public sealed class GameManager : MonoBehaviour
         if (isLoading)
             return;
 
+        CleanupRegistries();
+
         if (playerMovement == null)
         {
-            Debug.LogWarning("GameManager: PlayerMovement is not registered, cannot save.");
+            Debug.LogWarning("GameManager: PlayerMovement is not registered, cannot save.", this);
             return;
         }
 
         SaveData data = new SaveData
         {
-            saveVersion = 3,
+            saveVersion = 4,
             sceneName = SceneManager.GetActiveScene().name,
 
             playerPos = playerMovement.transform.position,
@@ -303,13 +335,11 @@ public sealed class GameManager : MonoBehaviour
             collectedPickups = new List<string>(collectedPickupIds)
         };
 
-        EnemyMovement[] enemies = FindObjectsByType<EnemyMovement>(FindObjectsSortMode.None);
-        for (int i = 0; i < enemies.Length; i++)
+        foreach (EnemyMovement enemy in registeredEnemies)
         {
-            EnemyMovement enemy = enemies[i];
             if (enemy == null) continue;
 
-            data.enemies.Add(new EnemySave
+            data.enemies.Add(new EnemyState
             {
                 id = enemy.gameObject.name,
                 pos = enemy.transform.position,
@@ -320,13 +350,11 @@ public sealed class GameManager : MonoBehaviour
             });
         }
 
-        DoorInteract[] doors = FindObjectsByType<DoorInteract>(FindObjectsSortMode.None);
-        for (int i = 0; i < doors.Length; i++)
+        foreach (DoorInteract door in registeredDoors)
         {
-            DoorInteract door = doors[i];
             if (door == null) continue;
 
-            data.doors.Add(new DoorSave
+            data.doors.Add(new DoorState
             {
                 id = door.DoorId,
                 unlocked = door.IsUnlocked,
@@ -335,7 +363,7 @@ public sealed class GameManager : MonoBehaviour
         }
 
         File.WriteAllText(SavePath, JsonUtility.ToJson(data, true));
-        Debug.Log("Game saved.");
+        Debug.Log("Game saved.", this);
     }
 
     public void LoadGame()
@@ -345,14 +373,14 @@ public sealed class GameManager : MonoBehaviour
 
         if (!File.Exists(SavePath))
         {
-            Debug.LogWarning("No save file found.");
+            Debug.LogWarning("No save file found.", this);
             return;
         }
 
         pendingLoad = JsonUtility.FromJson<SaveData>(File.ReadAllText(SavePath));
         if (pendingLoad == null)
         {
-            Debug.LogError("Save file is invalid.");
+            Debug.LogError("Save file is invalid.", this);
             return;
         }
 
@@ -411,7 +439,7 @@ public sealed class GameManager : MonoBehaviour
             StartCoroutine(ApplySceneTransferAfterSceneInit());
     }
 
-    private IEnumerator WaitForSceneRefs(int maxFrames = 12)
+    private IEnumerator WaitForSceneRefs(int maxFrames = 16)
     {
         int frames = 0;
 
@@ -434,6 +462,8 @@ public sealed class GameManager : MonoBehaviour
         yield return null;
         yield return StartCoroutine(WaitForSceneRefs());
 
+        CleanupRegistries();
+
         if (spawnManager != null)
             spawnManager.GenerateNewLayout(pendingLoad.spawnSeed);
 
@@ -441,9 +471,11 @@ public sealed class GameManager : MonoBehaviour
         yield return null;
         yield return StartCoroutine(WaitForSceneRefs());
 
+        CleanupRegistries();
+
         if (playerMovement == null)
         {
-            Debug.LogError("GameManager: player was not registered after scene load.");
+            Debug.LogError("GameManager: player was not registered after scene load.", this);
             pendingLoad = null;
             isLoading = false;
             yield break;
@@ -485,7 +517,7 @@ public sealed class GameManager : MonoBehaviour
         pendingLoad = null;
         isLoading = false;
 
-        Debug.Log("Load complete.");
+        Debug.Log("Load complete.", this);
     }
 
     private IEnumerator ApplySceneTransferAfterSceneInit()
@@ -517,24 +549,24 @@ public sealed class GameManager : MonoBehaviour
         if (pendingLoad == null || pendingLoad.enemies == null)
             return;
 
-        Dictionary<string, EnemySave> map = new Dictionary<string, EnemySave>();
+        CleanupRegistries();
+
+        Dictionary<string, EnemyState> map = new Dictionary<string, EnemyState>();
         for (int i = 0; i < pendingLoad.enemies.Count; i++)
         {
-            EnemySave st = pendingLoad.enemies[i];
-            if (st != null && !string.IsNullOrWhiteSpace(st.id))
-                map[st.id] = st;
+            EnemyState state = pendingLoad.enemies[i];
+            if (state != null && !string.IsNullOrWhiteSpace(state.id))
+                map[state.id] = state;
         }
 
-        EnemyMovement[] enemies = FindObjectsByType<EnemyMovement>(FindObjectsSortMode.None);
-        for (int i = 0; i < enemies.Length; i++)
+        foreach (EnemyMovement enemy in registeredEnemies)
         {
-            EnemyMovement enemy = enemies[i];
             if (enemy == null) continue;
 
-            if (map.TryGetValue(enemy.gameObject.name, out EnemySave st))
+            if (map.TryGetValue(enemy.gameObject.name, out EnemyState state))
             {
-                enemy.transform.SetPositionAndRotation(st.pos, st.rot);
-                enemy.ApplySavedAIState(st.chasingPlayer, st.returning, st.waypointIndex);
+                enemy.transform.SetPositionAndRotation(state.pos, state.rot);
+                enemy.ApplySavedAIState(state.chasingPlayer, state.returning, state.waypointIndex);
             }
         }
     }
@@ -544,35 +576,42 @@ public sealed class GameManager : MonoBehaviour
         if (pendingLoad == null || pendingLoad.doors == null)
             return;
 
-        Dictionary<string, DoorSave> map = new Dictionary<string, DoorSave>();
+        CleanupRegistries();
+
+        Dictionary<string, DoorState> map = new Dictionary<string, DoorState>();
         for (int i = 0; i < pendingLoad.doors.Count; i++)
         {
-            DoorSave ds = pendingLoad.doors[i];
-            if (ds != null && !string.IsNullOrWhiteSpace(ds.id))
-                map[ds.id] = ds;
+            DoorState state = pendingLoad.doors[i];
+            if (state != null && !string.IsNullOrWhiteSpace(state.id))
+                map[state.id] = state;
         }
 
-        DoorInteract[] doors = FindObjectsByType<DoorInteract>(FindObjectsSortMode.None);
-        for (int i = 0; i < doors.Length; i++)
+        foreach (DoorInteract door in registeredDoors)
         {
-            DoorInteract door = doors[i];
             if (door == null) continue;
 
-            if (map.TryGetValue(door.DoorId, out DoorSave ds))
-                door.ApplySavedState(ds.unlocked, ds.open);
+            if (map.TryGetValue(door.DoorId, out DoorState state))
+                door.ApplySavedState(state.unlocked, state.open);
         }
     }
 
     private void ApplyCollectedPickupsInScene()
     {
-        PickUpScript[] pickups = FindObjectsByType<PickUpScript>(FindObjectsSortMode.None);
-        for (int i = 0; i < pickups.Length; i++)
+        CleanupRegistries();
+
+        foreach (PickUpScript pickup in registeredPickups)
         {
-            PickUpScript pickup = pickups[i];
             if (pickup == null) continue;
 
             if (!string.IsNullOrWhiteSpace(pickup.PickupId) && collectedPickupIds.Contains(pickup.PickupId))
                 pickup.gameObject.SetActive(false);
         }
+    }
+
+    private void CleanupRegistries()
+    {
+        registeredEnemies.RemoveWhere(item => item == null);
+        registeredDoors.RemoveWhere(item => item == null);
+        registeredPickups.RemoveWhere(item => item == null);
     }
 }
