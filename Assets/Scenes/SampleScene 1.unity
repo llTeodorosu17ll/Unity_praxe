@@ -63911,6 +63911,8 @@ GameObject:
   m_Component:
   - component: {fileID: 1426362145}
   - component: {fileID: 1426362146}
+  - component: {fileID: 1426362148}
+  - component: {fileID: 1426362147}
   m_Layer: 0
   m_Name: GameManager
   m_TagString: Untagged
@@ -63952,6 +63954,30 @@ MonoBehaviour:
   flashlightSystem: {fileID: 1399065543}
   uiHint: {fileID: 963146722}
   spawnManager: {fileID: 309761602}
+--- !u!114 &1426362147
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1426362143}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 851fc076a0c447a46b4c11b149c0b29b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GamePersistence
+--- !u!114 &1426362148
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1426362143}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3865612ceab826b44b770ce43cecda22, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GameWorldState
 --- !u!95 &1430924983 stripped
 Animator:
   m_CorrespondingSourceObject: {fileID: 8472046332282515017, guid: e8855463ee39faa4eb9fde729dc09c66, type: 3}
