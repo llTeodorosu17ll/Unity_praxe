@@ -204,7 +204,7 @@ MonoBehaviour:
       m_Calls:
       - m_Target: {fileID: 342207253}
         m_TargetAssemblyTypeName: WinScript, Assembly-CSharp
-        m_MethodName: Continue
+        m_MethodName: Continue_Button
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -1919,8 +1919,8 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 1426362146}
-        m_TargetAssemblyTypeName: GameManager, Assembly-CSharp
+      - m_Target: {fileID: 963146723}
+        m_TargetAssemblyTypeName: PauseMenu, Assembly-CSharp
         m_MethodName: LoadGame_Button
         m_Mode: 1
         m_Arguments:
@@ -2526,10 +2526,10 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   m_Sprite: {fileID: 0}
-  m_Type: 0
+  m_Type: 1
   m_PreserveAspect: 0
   m_FillCenter: 1
-  m_FillMethod: 4
+  m_FillMethod: 0
   m_FillAmount: 1
   m_FillClockwise: 1
   m_FillOrigin: 0
@@ -2781,10 +2781,10 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   m_Sprite: {fileID: 0}
-  m_Type: 0
+  m_Type: 1
   m_PreserveAspect: 0
   m_FillCenter: 1
-  m_FillMethod: 4
+  m_FillMethod: 0
   m_FillAmount: 1
   m_FillClockwise: 1
   m_FillOrigin: 0
@@ -55829,7 +55829,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &596886185
 RectTransform:
   m_ObjectHideFlags: 0
@@ -59748,14 +59748,14 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 0}
-  m_Type: 0
+  m_Sprite: {fileID: 21300000, guid: ddb5579cee19f5c43abab10005f45ad9, type: 3}
+  m_Type: 3
   m_PreserveAspect: 0
   m_FillCenter: 1
-  m_FillMethod: 4
+  m_FillMethod: 0
   m_FillAmount: 1
   m_FillClockwise: 1
-  m_FillOrigin: 0
+  m_FillOrigin: 1
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
 --- !u!222 &1190623836
@@ -61397,7 +61397,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &1376333705
 RectTransform:
   m_ObjectHideFlags: 0
@@ -61599,7 +61599,7 @@ MonoBehaviour:
   mountPoint: {fileID: 1282510126}
   aimSource: {fileID: 401886480}
   maxBattery: 100
-  drainPerSecond: 2
+  drainPerSecond: 5
   clickVolume: 1
   extraRotationOffsetEuler: {x: 0, y: 0, z: 0}
   rotationSmooth: 0
@@ -61933,11 +61933,11 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 0}
-  m_Type: 0
+  m_Sprite: {fileID: 21300000, guid: ddb5579cee19f5c43abab10005f45ad9, type: 3}
+  m_Type: 3
   m_PreserveAspect: 0
   m_FillCenter: 1
-  m_FillMethod: 4
+  m_FillMethod: 0
   m_FillAmount: 1
   m_FillClockwise: 1
   m_FillOrigin: 0
@@ -62429,8 +62429,8 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 1426362146}
-        m_TargetAssemblyTypeName: GameManager, Assembly-CSharp
+      - m_Target: {fileID: 963146723}
+        m_TargetAssemblyTypeName: PauseMenu, Assembly-CSharp
         m_MethodName: SaveGame_Button
         m_Mode: 1
         m_Arguments:
@@ -62776,7 +62776,7 @@ MonoBehaviour:
   maxStamina: 100
   drainPerSecond: 15
   regenPerSecond: 7.5
-  minPercentToStartActions: 1
+  minPercentToStartActions: 2
   staminaFill: {fileID: 0}
   staminaText: {fileID: 0}
   staminaLabel: STAMINA
@@ -62989,7 +62989,7 @@ RectTransform:
   m_Father: {fileID: 1560592383}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 0}
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 20, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
@@ -63596,8 +63596,8 @@ MonoBehaviour:
   vision: {fileID: 1641312655}
   coneShader: {fileID: 0}
   segments: 64
-  height: 1.6
-  verticalPivot: 0.2
+  height: 5
+  verticalPivot: 0.4
   yOffset: 0.02
   rayStartForwardOffset: 0.15
   color: {r: 1, g: 0, b: 0, a: 1}
@@ -64693,8 +64693,8 @@ MonoBehaviour:
   vision: {fileID: 1760314868}
   coneShader: {fileID: 0}
   segments: 64
-  height: 1.6
-  verticalPivot: 0.2
+  height: 5
+  verticalPivot: 0.4
   yOffset: 0.02
   rayStartForwardOffset: 0.15
   color: {r: 1, g: 0, b: 0, a: 1}
@@ -65633,7 +65633,7 @@ RectTransform:
   m_Father: {fileID: 2072548218}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 0}
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 10, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}

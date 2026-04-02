@@ -1,4 +1,3 @@
-using System.Collections;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
@@ -13,7 +12,7 @@ public class PauseMenu : MonoBehaviour
     [SerializeField] private RectTransform pausePanel;
     [SerializeField] private RectTransform optionsPanel;
 
-    [Header("Gameplay Scripts To Disable")]
+    [Header("Disable On Pause")]
     [SerializeField] private MonoBehaviour[] disableOnPause;
 
     [Header("Input")]
@@ -25,22 +24,21 @@ public class PauseMenu : MonoBehaviour
 
     public static bool IsPaused { get; private set; }
 
-    private string previousActionMap;
-    private InputActionMap uiMap;
-    private InputActionMap gameplayMap;
-    private bool isWarmupRunning;
+    private Graphic[] pauseGraphics;
+    private Selectable[] pauseSelectables;
+
+    private Graphic[] optionsGraphics;
+    private Selectable[] optionsSelectables;
 
     private void Awake()
     {
         IsPaused = false;
         Time.timeScale = 1f;
 
-        ValidateRefs();
+        CachePanelUi();
 
-        SetPanelActive(pausePanel, false);
-        SetPanelActive(optionsPanel, false);
-
-        CacheActionMaps();
+        SetPanelVisible(pauseGraphics, pauseSelectables, false);
+        SetPanelVisible(optionsGraphics, optionsSelectables, false);
 
         float volume = PlayerPrefs.GetFloat(VolumeKey, 1f);
         ApplyVolume(volume);
@@ -50,23 +48,30 @@ public class PauseMenu : MonoBehaviour
             volumeSlider.minValue = 0f;
             volumeSlider.maxValue = 1f;
             volumeSlider.value = volume;
+            volumeSlider.onValueChanged.RemoveListener(OnVolumeChanged_Event);
             volumeSlider.onValueChanged.AddListener(OnVolumeChanged_Event);
         }
 
-        SetupMusic(menuMusicSource);
+        if (menuMusicSource != null)
+        {
+            menuMusicSource.playOnAwake = false;
+            menuMusicSource.loop = true;
+            menuMusicSource.spatialBlend = 0f;
+            menuMusicSource.volume = AudioListener.volume;
+
+            if (menuMusicSource.clip != null)
+            {
+                bool oldMute = menuMusicSource.mute;
+                menuMusicSource.mute = true;
+                menuMusicSource.Play();
+                menuMusicSource.Pause();
+                menuMusicSource.time = 0f;
+                menuMusicSource.mute = oldMute;
+            }
+        }
 
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
-
-        Canvas.ForceUpdateCanvases();
-
-        if (playerInput != null)
-            playerInput.ActivateInput();
-    }
-
-    private void Start()
-    {
-        StartCoroutine(WarmupPauseCycle());
     }
 
     private void OnDestroy()
@@ -77,44 +82,56 @@ public class PauseMenu : MonoBehaviour
 
     private void Update()
     {
-        if (isWarmupRunning)
-            return;
-
         if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
         {
             if (!IsPaused)
+            {
                 Pause_Internal();
-            else if (optionsPanel != null && optionsPanel.gameObject.activeSelf)
+            }
+            else if (IsPanelVisible(optionsGraphics))
+            {
                 CloseOptions_Button();
+            }
             else
+            {
                 Resume_Internal();
+            }
         }
     }
 
-    // Called by Button OnClick
     public void Resume_Button()
     {
         Resume_Internal();
     }
 
-    // Called by Button OnClick
     public void OpenOptions_Button()
     {
         if (!IsPaused)
             return;
 
-        SetPanelActive(pausePanel, false);
-        SetPanelActive(optionsPanel, true);
+        SetPanelVisible(pauseGraphics, pauseSelectables, false);
+        SetPanelVisible(optionsGraphics, optionsSelectables, true);
     }
 
-    // Called by Button OnClick
     public void CloseOptions_Button()
     {
         if (!IsPaused)
             return;
 
-        SetPanelActive(optionsPanel, false);
-        SetPanelActive(pausePanel, true);
+        SetPanelVisible(optionsGraphics, optionsSelectables, false);
+        SetPanelVisible(pauseGraphics, pauseSelectables, true);
+    }
+
+    public void SaveGame_Button()
+    {
+        if (GameManager.HasInstance)
+            GameManager.Instance.SaveGame();
+    }
+
+    public void LoadGame_Button()
+    {
+        if (GameManager.HasInstance)
+            GameManager.Instance.LoadGame();
     }
 
     private void Pause_Internal()
@@ -122,17 +139,17 @@ public class PauseMenu : MonoBehaviour
         IsPaused = true;
         Time.timeScale = 0f;
 
-        SetPanelActive(pausePanel, true);
-        SetPanelActive(optionsPanel, false);
+        SetPanelVisible(pauseGraphics, pauseSelectables, true);
+        SetPanelVisible(optionsGraphics, optionsSelectables, false);
 
         SetGameplayEnabled(false);
-        PauseInput();
+        SwitchToMap(UiActionMapName);
 
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
 
         if (menuMusicSource != null && menuMusicSource.clip != null && !menuMusicSource.isPlaying)
-            menuMusicSource.Play();
+            menuMusicSource.UnPause();
     }
 
     private void Resume_Internal()
@@ -140,119 +157,30 @@ public class PauseMenu : MonoBehaviour
         IsPaused = false;
         Time.timeScale = 1f;
 
-        SetPanelActive(pausePanel, false);
-        SetPanelActive(optionsPanel, false);
+        SetPanelVisible(pauseGraphics, pauseSelectables, false);
+        SetPanelVisible(optionsGraphics, optionsSelectables, false);
 
         SetGameplayEnabled(true);
-        ResumeInput();
+        SwitchToMap(GameplayActionMapName);
 
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
 
         if (menuMusicSource != null)
         {
-            menuMusicSource.Stop();
+            menuMusicSource.Pause();
             menuMusicSource.time = 0f;
         }
     }
 
-    private IEnumerator WarmupPauseCycle()
+    private void SwitchToMap(string mapName)
     {
-        isWarmupRunning = true;
-
-        yield return null;
-        yield return new WaitForEndOfFrame();
-
-        if (playerInput != null)
-            playerInput.ActivateInput();
-
-        CacheActionMaps();
-
-        float previousTimeScale = Time.timeScale;
-
-        Time.timeScale = 0f;
-        SetGameplayEnabled(false);
-        PauseInput();
-
-        Cursor.lockState = CursorLockMode.None;
-        Cursor.visible = true;
-
-        yield return null;
-
-        Cursor.lockState = CursorLockMode.Locked;
-        Cursor.visible = false;
-
-        ResumeInput();
-        SetGameplayEnabled(true);
-        Time.timeScale = previousTimeScale;
-
-        SetPanelActive(pausePanel, false);
-        SetPanelActive(optionsPanel, false);
-
-        isWarmupRunning = false;
-    }
-
-    private void ValidateRefs()
-    {
-        if (pausePanel == null)
-            Debug.LogError("PauseMenu: pausePanel is not assigned.", this);
-
-        if (optionsPanel == null)
-            Debug.LogError("PauseMenu: optionsPanel is not assigned.", this);
-
-        if (playerInput == null)
-            Debug.LogError("PauseMenu: playerInput is not assigned.", this);
-    }
-
-    private void CacheActionMaps()
-    {
-        previousActionMap = string.Empty;
-        uiMap = null;
-        gameplayMap = null;
-
-        if (playerInput == null || playerInput.actions == null)
+        if (playerInput == null || !playerInput.enabled || playerInput.actions == null)
             return;
 
-        if (playerInput.currentActionMap != null)
-            previousActionMap = playerInput.currentActionMap.name;
-
-        uiMap = playerInput.actions.FindActionMap(UiActionMapName, false);
-        gameplayMap = playerInput.actions.FindActionMap(GameplayActionMapName, false);
-    }
-
-    private void PauseInput()
-    {
-        if (playerInput == null)
-            return;
-
-        playerInput.ActivateInput();
-
-        if (playerInput.currentActionMap != null)
-            previousActionMap = playerInput.currentActionMap.name;
-
-        if (uiMap != null)
-            playerInput.SwitchCurrentActionMap(uiMap.name);
-    }
-
-    private void ResumeInput()
-    {
-        if (playerInput == null)
-            return;
-
-        playerInput.ActivateInput();
-
-        if (gameplayMap != null)
-        {
-            playerInput.SwitchCurrentActionMap(gameplayMap.name);
-            return;
-        }
-
-        if (!string.IsNullOrWhiteSpace(previousActionMap) && playerInput.actions != null)
-        {
-            InputActionMap map = playerInput.actions.FindActionMap(previousActionMap, false);
-            if (map != null)
-                playerInput.SwitchCurrentActionMap(map.name);
-        }
+        InputActionMap map = playerInput.actions.FindActionMap(mapName, false);
+        if (map != null)
+            playerInput.SwitchCurrentActionMap(map.name);
     }
 
     private void SetGameplayEnabled(bool enabled)
@@ -265,17 +193,6 @@ public class PauseMenu : MonoBehaviour
             if (disableOnPause[i] != null)
                 disableOnPause[i].enabled = enabled;
         }
-    }
-
-    private void SetupMusic(AudioSource source)
-    {
-        if (source == null)
-            return;
-
-        source.playOnAwake = false;
-        source.loop = true;
-        source.spatialBlend = 0f;
-        source.volume = AudioListener.volume;
     }
 
     private void OnVolumeChanged_Event(float value)
@@ -294,9 +211,53 @@ public class PauseMenu : MonoBehaviour
             menuMusicSource.volume = value;
     }
 
-    private void SetPanelActive(RectTransform panel, bool active)
+    private void CachePanelUi()
     {
-        if (panel != null)
-            panel.gameObject.SetActive(active);
+        if (pausePanel != null)
+        {
+            pauseGraphics = pausePanel.GetComponentsInChildren<Graphic>(true);
+            pauseSelectables = pausePanel.GetComponentsInChildren<Selectable>(true);
+        }
+
+        if (optionsPanel != null)
+        {
+            optionsGraphics = optionsPanel.GetComponentsInChildren<Graphic>(true);
+            optionsSelectables = optionsPanel.GetComponentsInChildren<Selectable>(true);
+        }
+    }
+
+    private void SetPanelVisible(Graphic[] graphics, Selectable[] selectables, bool visible)
+    {
+        if (graphics != null)
+        {
+            for (int i = 0; i < graphics.Length; i++)
+            {
+                if (graphics[i] != null)
+                    graphics[i].enabled = visible;
+            }
+        }
+
+        if (selectables != null)
+        {
+            for (int i = 0; i < selectables.Length; i++)
+            {
+                if (selectables[i] != null)
+                    selectables[i].interactable = visible;
+            }
+        }
+    }
+
+    private bool IsPanelVisible(Graphic[] graphics)
+    {
+        if (graphics == null || graphics.Length == 0)
+            return false;
+
+        for (int i = 0; i < graphics.Length; i++)
+        {
+            if (graphics[i] != null && graphics[i].enabled)
+                return true;
+        }
+
+        return false;
     }
 }

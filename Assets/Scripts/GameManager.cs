@@ -127,9 +127,6 @@ public class GameManager : MonoBehaviour
             SceneManager.sceneLoaded -= OnSceneLoaded;
     }
 
-    // ----------------------------
-    // Registration
-    // ----------------------------
     public void RegisterPlayer(PlayerMovement movement, StaminaSystem stamina, FlashlightSystem flashlight)
     {
         playerMovement = movement;
@@ -205,9 +202,6 @@ public class GameManager : MonoBehaviour
             registeredPickups.Remove(pickup);
     }
 
-    // ----------------------------
-    // Score / Keys
-    // ----------------------------
     public void AddScore(int amount)
     {
         if (amount == 0)
@@ -268,9 +262,6 @@ public class GameManager : MonoBehaviour
         return true;
     }
 
-    // ----------------------------
-    // Pickups
-    // ----------------------------
     public void MarkPickupCollected(string pickupId)
     {
         if (!string.IsNullOrWhiteSpace(pickupId))
@@ -282,24 +273,6 @@ public class GameManager : MonoBehaviour
         return !string.IsNullOrWhiteSpace(pickupId) && collectedPickupIds.Contains(pickupId);
     }
 
-    // ----------------------------
-    // Buttons
-    // ----------------------------
-    // Called by Button OnClick
-    public void SaveGame_Button()
-    {
-        SaveGame();
-    }
-
-    // Called by Button OnClick
-    public void LoadGame_Button()
-    {
-        LoadGame();
-    }
-
-    // ----------------------------
-    // Save / Load
-    // ----------------------------
     public void SaveGame()
     {
         if (isLoading)
@@ -395,9 +368,6 @@ public class GameManager : MonoBehaviour
         SceneManager.LoadScene(pendingLoad.sceneName);
     }
 
-    // ----------------------------
-    // Scene transfer
-    // ----------------------------
     public void CaptureSceneTransferState()
     {
         pendingSceneTransfer = new SceneTransferData
@@ -422,6 +392,8 @@ public class GameManager : MonoBehaviour
 
         if (nextIndex >= SceneManager.sceneCountInBuildSettings)
             return false;
+
+        collectedPickupIds.Clear();
 
         SceneManager.LoadScene(nextIndex);
         return true;

@@ -49,7 +49,11 @@ public class PickUpScript : MonoBehaviour
         audioSource = GetComponent<AudioSource>();
 
         if (string.IsNullOrWhiteSpace(pickupId))
-            pickupId = gameObject.scene.name + "_" + gameObject.name + "_" + transform.position;
+        {
+            string sceneKey = gameObject.scene.path;
+            string posKey = $"{transform.position.x:F3}_{transform.position.y:F3}_{transform.position.z:F3}";
+            pickupId = $"{sceneKey}|{gameObject.name}|{posKey}";
+        }
     }
 
     private void Start()
